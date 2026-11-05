@@ -6,7 +6,7 @@ import type { BranchDef } from '../content/types';
 import { unitReadiness, UNLOCK_AVG } from '../engine/unlock';
 import { weekStats } from '../engine/stats';
 import { exerciseById, lessonById, skillById } from '../content';
-import { DAY_NAMES_SHORT, formatDate, genitive, greeting, today } from '../lib/tr';
+import { DAY_NAMES_SHORT, daysBetween, formatDate, genitive, greeting, today } from '../lib/tr';
 import { go } from '../lib/router';
 import type { SessionRecord } from '../db/db';
 
@@ -17,6 +17,8 @@ export default function Today() {
   const sessions = useLiveQuery(() => db.sessions.toArray(), []) ?? [];
   const skills = useLiveQuery(() => db.skills.toArray(), []) ?? [];
   const pending = useLiveQuery(() => db.attempts.where('pendingReview').equals(1).count(), []) ?? 0;
+  // Yedek hatırlatması için: cihazda korunmaya değer veri var mı?
+  const hasWork = useLiveQuery(async () => (await db.attempts.count()) + (await db.drafts.count()) + (await db.notes.count()) > 0, []) ?? false;
   const [preview, setPreview] = useState<{ plan: SessionRecord['plan']; frontier: Frontier } | null>(null);
   const [focus, setFocus] = useState<string | undefined>();
   const [nextBranch, setNextBranch] = useState<BranchDef | undefined>();
@@ -146,7 +148,18 @@ export default function Today() {
         </a>
       )}
 
-      <a className="list-link" href="#/notes?new=1">
+      {hasWork && (!settings.lastBackupAt || daysBetween(settings.lastBackupAt.slice(0, 10), t) > 30) && (
+        <a className="list-link" href="#/settings">
+          <span className="small muted">
+            {settings.lastBackupAt
+              ? `Son yedeğin ${daysBetween(settings.lastBackupAt.slice(0, 10), t)} gün önce. Telefon başına bir şey gelirse diye yenisini alabilirsin.`
+              : 'Henüz yedek almadın. Yazdıkların yalnızca bu cihazda; Ayarlar\'dan bir yedek alabilirsin.'}
+          </span>
+          <span className="chev">›</span>
+        </a>
+      )}
+
+      <a className="list-link" href="#/desk?t=notlar&new=1">
         <span className="small">Yolda bir şey mi gördün? Yol Defteri'ne yaz.</span>
         <span className="chev">›</span>
       </a>

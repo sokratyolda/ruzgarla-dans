@@ -10,6 +10,7 @@ import { formatDate } from '../lib/tr';
 import { TopBar, useOnline, useToast } from '../components/ui';
 import { FeedbackView } from '../components/WritingStep';
 import { go } from '../lib/router';
+import { createDraft } from '../lib/desk';
 
 export default function Writings() {
   const attempts = useLiveQuery(() => db.attempts.orderBy('date').reverse().toArray(), []) ?? [];
@@ -95,6 +96,17 @@ function Group({ versions }: { versions: Attempt[] }) {
       )}
       {last.reviewError && last.pendingReview === 1 && <div className="tiny" style={{ color: 'var(--warn)', marginTop: 6 }}>{last.reviewError}</div>}
       <div className="row end" style={{ marginTop: 10 }}>
+        <button
+          className="btn small ghost"
+          title="Bu metni alıştırmadan çıkarıp Masa'da serbestçe geliştir"
+          onClick={async () => {
+            const body = formatResponse(last.response as string | Record<string, string>);
+            const kind = ex.type === 'video' ? 'video-metni' : 'öykü';
+            go(`/draft/${await createDraft({ body, kind, fromAttempt: last.id, title: '' })}`);
+          }}
+        >
+          Masaya al
+        </button>
         <button className="btn small" onClick={() => go(`/rewrite/${last.id}`)}>Yeniden yaz</button>
       </div>
     </div>

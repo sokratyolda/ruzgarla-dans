@@ -13,6 +13,9 @@ export const Icon = {
   gaps: () => (
     <svg viewBox="0 0 24 24" {...P}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
   ),
+  desk: () => (
+    <svg viewBox="0 0 24 24" {...P}><path d="M4 20h16" /><path d="M14.5 4.5l5 5L10 19H5v-5z" /><path d="M12.5 6.5l5 5" /></svg>
+  ),
   notes: () => (
     <svg viewBox="0 0 24 24" {...P}><path d="M6 3h10l3 3v15H6z" /><path d="M9 9h7M9 13h7M9 17h4" /></svg>
   ),

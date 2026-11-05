@@ -12,7 +12,8 @@ import { parseHash } from '../lib/router';
 
 export const NOTE_TAGS: RoadNoteTag[] = ['insan', 'mekân', 'an', 'düşünce'];
 
-export default function RoadNotes() {
+/** `embedded`: Masa ekranının içinde sekme olarak gösterilir (başlık gizlenir). */
+export default function RoadNotes({ embedded = false }: { embedded?: boolean }) {
   const [text, setText] = useState('');
   const [tags, setTags] = useState<RoadNoteTag[]>([]);
   const [filter, setFilter] = useState<RoadNoteTag | null>(null);
@@ -59,9 +60,13 @@ export default function RoadNotes() {
   const shown = notes.filter((n) => (!filter || n.tags.includes(filter)) && (!nq || normalize(n.text).includes(nq)));
 
   return (
-    <div className="fade">
-      <div className="eyebrow">Yol Defteri</div>
-      <h1>Malzeme kutusu</h1>
+    <div className={embedded ? '' : 'fade'}>
+      {!embedded && (
+        <>
+          <div className="eyebrow">Yol Defteri</div>
+          <h1>Malzeme kutusu</h1>
+        </>
+      )}
       <p className="small muted">Gördüğün, duyduğun, aklına gelen. Cümle olması gerekmez. Mikrofona basıp konuşabilirsin.</p>
 
       <textarea

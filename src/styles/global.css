@@ -363,3 +363,81 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 22px 0; }
 .branch-picker .chip.dim:not(.on) { opacity: 0.55; }
 .season-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ember); display: inline-block; }
 .branch-group + .branch-group { margin-top: 26px; }
+
+/* ——— Yazarın Masası ——— */
+.draft-title {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 6px 0;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--text);
+  outline: none;
+}
+.draft-title::placeholder { color: var(--text-3); }
+.draft-body {
+  min-height: 62vh;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 1.12rem;
+  line-height: 1.75;
+  border-radius: 0;
+  resize: none;
+}
+.draft-body:focus { border: none; }
+.rev-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 2px;
+  color: var(--text);
+  cursor: pointer;
+  min-height: 52px;
+}
+.rev-row:last-child { border-bottom: none; }
+.diff {
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  margin-top: 10px;
+}
+.diff-add { background: var(--good-soft); color: var(--good); text-decoration: underline; text-underline-offset: 3px; }
+.diff-del { background: var(--warn-soft); color: var(--warn); text-decoration: line-through; }
+
+/* Telefonda yan panel metnin altında bir kart olarak açılır */
+.desk-side {
+  margin-top: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+/* Geniş ekran (MacBook, yatay tablet): metin ortada, panel sağda */
+.app.wide { max-width: 40rem; }
+@media (min-width: 1000px) {
+  .app.wide { max-width: 68rem; }
+  .desk-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 42rem) 22rem;
+    gap: 40px;
+    justify-content: center;
+    align-items: start;
+  }
+  .desk-side {
+    margin-top: 62px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+  }
+}
+@media (min-width: 1000px) { .desk-side-close { display: none; } }
+.chip.compact { min-height: 40px; padding: 0 12px; font-size: 0.85rem; white-space: nowrap; }

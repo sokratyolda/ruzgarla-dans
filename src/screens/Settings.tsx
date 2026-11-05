@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, defaultSettings, updateSettings } from '../db/db';
 import { MODEL_OPTIONS, explainError, testConnection } from '../ai/claude';
 import { processQueue } from '../ai/queue';
-import { downloadBackup, importData, wipeAll } from '../lib/backup';
+import { describeCounts, downloadBackup, mergeWith, parseBackup, previewBackup, replaceWith, wipeAll, type BackupFile } from '../lib/backup';
 import { TopBar, useToast } from '../components/ui';
 import { go } from '../lib/router';
 import { BRANCHES, branchById } from '../content';
@@ -19,6 +19,7 @@ export default function SettingsScreen() {
   const [testing, setTesting] = useState(false);
   const [withKey, setWithKey] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<BackupFile | null>(null);
   const custom = !MODEL_OPTIONS.some((m) => m.id === s.model);
 
   const saveKey = async () => {
@@ -40,14 +41,28 @@ export default function SettingsScreen() {
     }
   };
 
-  const onImport = async (f: File) => {
-    if (!window.confirm('Yedek geri yüklensin mi? Bu cihazdaki mevcut verinin YERİNE geçer.')) return;
+  // İçe aktarma iki adımlı: önce dosya doğrulanır ve içeriği gösterilir, sonra yöntem seçilir.
+  const onPick = async (f: File) => {
     try {
-      const { counts } = await importData(await f.text());
-      show(`Geri yüklendi: ${counts.attempts ?? 0} deneme, ${counts.notes ?? 0} not, ${counts.journal ?? 0} günce.`);
+      setPending(parseBackup(await f.text()));
     } catch (e) {
       show(e instanceof Error ? e.message : 'Dosya okunamadı.');
     }
+  };
+
+  const doMerge = async () => {
+    if (!pending) return;
+    const { added } = await mergeWith(pending);
+    setPending(null);
+    show(`Birleştirildi. Eklenen: ${describeCounts(added)}.`);
+  };
+
+  const doReplace = async () => {
+    if (!pending) return;
+    if (!window.confirm('Bu cihazdaki bütün veri silinip yedekteki veri yazılacak. Emin misin?')) return;
+    const { counts } = await replaceWith(pending);
+    setPending(null);
+    show(`Geri yüklendi: ${describeCounts(counts)}.`);
   };
 
   return (
@@ -185,8 +200,9 @@ export default function SettingsScreen() {
       <div className="card">
         <h3>Yedek</h3>
         <p className="small muted">
-          Tüm veri (beceri profili, yazılar, Yol Defteri, Günce) tek bir JSON dosyasına yazılır. Telefon değiştirirsen ya da
-          bozulursa bu dosyayla geri yüklersin. Arada bir indirip buluta ya da bilgisayarına koymanı öneririm.
+          Tüm veri (beceri profili, alıştırma yazıları, Masa'daki taslaklar ve sürümleri, Yol Defteri, Günce) tek bir JSON
+          dosyasına yazılır. Telefon değiştirirsen ya da bozulursa bu dosyayla geri yüklersin; telefon ile bilgisayar
+          arasında taşımak için de kullanabilirsin. Arada bir indirip buluta ya da bilgisayarına koymanı öneririm.
         </p>
         <label className="row small" style={{ margin: '6px 0 12px' }}>
           <input type="checkbox" checked={withKey} onChange={(e) => setWithKey(e.target.checked)} style={{ width: 20, height: 20 }} />
@@ -196,6 +212,10 @@ export default function SettingsScreen() {
           <button className="btn primary grow" onClick={() => downloadBackup(withKey)}>Dışa aktar</button>
           <button className="btn grow" onClick={() => fileRef.current?.click()}>İçe aktar</button>
         </div>
+        {s.lastBackupAt && (
+          <div className="tiny faint" style={{ marginTop: 8 }}>Son yedek: {formatDate(s.lastBackupAt)}</div>
+        )}
+        {pending && <ImportPreview file={pending} onMerge={doMerge} onReplace={doReplace} onCancel={() => setPending(null)} />}
         <input
           ref={fileRef}
           type="file"
@@ -203,7 +223,7 @@ export default function SettingsScreen() {
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) void onImport(f);
+            if (f) void onPick(f);
             e.target.value = '';
           }}
         />
@@ -228,6 +248,41 @@ export default function SettingsScreen() {
 
       <p className="tiny faint center" style={{ marginTop: 20 }}>Rüzgârla Dans · sürüm {__APP_VERSION__} · veriler yalnızca bu cihazda</p>
       {toast}
+    </div>
+  );
+}
+
+function ImportPreview({
+  file,
+  onMerge,
+  onReplace,
+  onCancel,
+}: {
+  file: BackupFile;
+  onMerge: () => void;
+  onReplace: () => void;
+  onCancel: () => void;
+}) {
+  const p = previewBackup(file);
+  return (
+    <div className="card soft rise" style={{ marginTop: 14 }}>
+      <div className="eyebrow">Yedek dosyası</div>
+      <p className="small" style={{ marginBottom: 6 }}>
+        {p.exportedAt ? <>{formatDate(p.exportedAt, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} tarihli. </> : null}
+        İçinde: {describeCounts(p.counts)}.
+      </p>
+      {p.version === 1 && <p className="tiny faint">Uygulamanın önceki sürümüyle alınmış; bugünkü yapıya uyarlanarak yüklenir.</p>}
+      <p className="tiny muted">
+        <strong>Birleştir:</strong> Bu cihazdaki her şey kalır; yedekte olup burada olmayanlar eklenir. Telefon ile bilgisayar
+        arasında taşırken bunu seç.
+        <br />
+        <strong>Yerine koy:</strong> Bu cihazdaki bütün veri silinir, yerine yedek gelir. Yeni ya da sıfırlanmış bir cihaz için.
+      </p>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn small primary grow" onClick={onMerge}>Birleştir</button>
+        <button className="btn small grow" onClick={onReplace}>Yerine koy</button>
+        <button className="btn small ghost" onClick={onCancel}>Vazgeç</button>
+      </div>
     </div>
   );
 }

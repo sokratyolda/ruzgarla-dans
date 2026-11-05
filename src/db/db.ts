@@ -106,7 +106,7 @@ export interface RoadNote {
   usedIn?: string[];
 }
 
-// ——— Yazarın Masası (Aşama B'de kullanılacak; tablolar sürüm 2'de hazır) ———
+// ——— Yazarın Masası (tablolar sürüm 2'de eklendi) ———
 export interface Draft {
   id: string; // UUID
   title: string;
@@ -115,6 +115,10 @@ export interface Draft {
   tags: string[];
   projectId?: string;
   status: 'taslak' | 'revizyonda' | 'bitti';
+  /** Taslağa iliştirilmiş Yol Defteri notları */
+  materials?: number[];
+  /** Yazılarım'dan masaya alındıysa kaynak denemenin kimliği */
+  fromAttempt?: number;
   createdAt: string;
   updatedAt: string;
 }

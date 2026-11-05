@@ -73,3 +73,6 @@ export function genitive(n: number): string {
   const endsWithVowel = 'aeıioöuü'.includes(word[word.length - 1]);
   return `${n}'${endsWithVowel ? 'n' : ''}${v}n`;
 }
+
+/** Yalnızca saat: "10:22" */
+export const formatTime = (iso: string) => new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });

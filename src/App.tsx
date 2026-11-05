@@ -7,19 +7,22 @@ import Welcome from './screens/Welcome';
 import Today from './screens/Today';
 import PathScreen from './screens/Path';
 import Gaps from './screens/Gaps';
-import RoadNotes from './screens/RoadNotes';
+import Desk from './screens/Desk';
+import DraftEditor from './screens/DraftEditor';
+import ProjectView from './screens/ProjectView';
 import More from './screens/More';
 import Journal from './screens/Journal';
 import Writings from './screens/Writings';
 import SettingsScreen from './screens/Settings';
 import Session from './screens/Session';
 import RewriteLater from './screens/RewriteLater';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const TABS = [
   { path: '/today', label: 'Bugün', icon: Icon.today },
   { path: '/path', label: 'Yol', icon: Icon.path },
   { path: '/gaps', label: 'Eksiklerim', icon: Icon.gaps },
-  { path: '/notes', label: 'Yol Defteri', icon: Icon.notes },
+  { path: '/desk', label: 'Masa', icon: Icon.desk },
   { path: '/more', label: 'Daha', icon: Icon.more },
 ];
 
@@ -44,13 +47,17 @@ export default function App() {
   if (!settings?.onboarded) return <Welcome />;
 
   const top = '/' + (route.parts[0] ?? 'today');
-  const inSession = top === '/session' || top === '/rewrite';
+  const inSession = top === '/session' || top === '/rewrite' || top === '/draft';
 
   let screen;
   switch (top) {
     case '/path': screen = <PathScreen />; break;
     case '/gaps': screen = <Gaps />; break;
-    case '/notes': screen = <RoadNotes />; break;
+    case '/desk': screen = <Desk query={route.query} />; break;
+    // Eski bağlantılar (#/notes) Masa'daki Yol Defteri sekmesine düşer
+    case '/notes': screen = <Desk query={new URLSearchParams({ t: 'notlar', ...Object.fromEntries(route.query) })} />; break;
+    case '/draft': screen = <DraftEditor id={route.parts[1] ?? ''} />; break;
+    case '/project': screen = <ProjectView id={route.parts[1] ?? ''} />; break;
     case '/more': screen = <More />; break;
     case '/journal': screen = <Journal />; break;
     case '/writings': screen = <Writings />; break;
@@ -60,11 +67,15 @@ export default function App() {
     default: screen = <Today />;
   }
 
-  const activeTab = ['/journal', '/writings', '/settings'].includes(top) ? '/more' : top;
+  const activeTab = ['/journal', '/writings', '/settings'].includes(top)
+    ? '/more'
+    : ['/notes', '/draft', '/project'].includes(top)
+      ? '/desk'
+      : top;
 
   return (
     <>
-      <main className={`app ${inSession ? 'no-nav' : ''}`}>{screen}</main>
+      <main className={`app ${inSession ? 'no-nav' : ''} ${top === '/draft' ? 'wide' : ''}`}><ErrorBoundary resetKey={top + route.parts.join('/')}>{screen}</ErrorBoundary></main>
       {!inSession && (
         <nav className="nav" aria-label="Ana gezinme">
           <div className="inner">

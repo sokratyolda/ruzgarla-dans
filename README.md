@@ -34,9 +34,27 @@ Anahtar yoksa ya da çevrimdışıysan uygulama yine tam çalışır:
 - Metin **“sonra değerlendir” kuyruğuna** girer; internet gelince (ve anahtar varsa) kendiliğinden değerlendirilir. **Yazılarım** ekranından elle de başlatabilirsin.
 - **“Metni ve rubriği kopyala”** düğmesi, metnini ve ölçütleri hazır bir istemle panoya kopyalar; istediğin bir yapay zekâya yapıştırabilirsin.
 
+### Yazarın Masası
+
+Alt gezinmedeki **Masa** sekmesi, alıştırmalardan bağımsız kendi yazın içindir.
+
+- **Taslaklar:** Deneme, gezi yazısı, öykü, video metni, şiir. Yazdığın her şey anında telefona kaydedilir (internet gerekmez). Tür, durum (taslak / revizyonda / bitti), proje ve etiket verilebilir; taslaklarda arama yapılır.
+- **Sürümler:** "Kontrol noktası al" metnin o anki hâlini notuyla saklar. Taslaktan çıkarken de (son sürümden 10 dakika geçtiyse ve metin değiştiyse) otomatik bir sürüm alınır. Herhangi bir sürümü bugünkü metinle **karşılaştırabilir** (eklenen ve çıkarılan kelimeler işaretlenir) ya da ona **geri dönebilirsin**. Geri dönmeden önce şimdiki hâl ayrıca saklanır; dönüş de geri alınabilir.
+- **Malzeme:** Yol Defteri notlarını taslağa iliştir; yazarken yanında durur, metne karışmaz.
+- **Projeler:** Taslakları bir projede topla (ör. "Yol Denemeleri"), bölüm sırasını belirle, bütün projeyi tek bir Markdown dosyası olarak indir.
+- **Yol Defteri** de Masa'nın içinde bir sekmedir.
+- Yazılarım'daki bir alıştırma metnini **Masaya al** düğmesiyle taslağa çevirip serbestçe geliştirebilirsin.
+- Bilgisayarda (geniş ekranda) metin ortada, sürümler/malzeme paneli sağda açık durur.
+
 ### Yedek
 
-**Ayarlar → Yedek → Dışa aktar** tüm veriyi (beceri profili, yazılar, Yol Defteri, Günce) tek bir JSON dosyasına indirir. Telefon değişirse **İçe aktar** ile geri yüklenir. Arada bir yedek alıp buluta ya da bilgisayara koymanı öneririm.
+**Ayarlar → Yedek → Dışa aktar** tüm veriyi (beceri profili, alıştırma yazıları, Masa'daki taslaklar ve sürümleri, Yol Defteri, Günce) tek bir JSON dosyasına indirir.
+
+**İçe aktar** önce dosyayı doğrular ve içinde ne olduğunu gösterir; sonra iki seçenek sunar:
+- **Birleştir:** Bu cihazdaki her şey kalır, yedekte olup burada olmayanlar eklenir. Telefon ile MacBook arasında taşırken bunu kullan; aynı yedeği iki kez birleştirmek bir şeyi çoğaltmaz.
+- **Yerine koy:** Bu cihazdaki bütün veri silinir, yerine yedek gelir (yeni ya da sıfırlanmış cihaz için).
+
+Bozuk ya da uygulamanın daha yeni bir sürümüyle alınmış dosyalar, mevcut veriye dokunulmadan reddedilir. 30 günden uzun süredir yedek alınmadıysa Bugün ekranında sakin bir hatırlatma çıkar.
 
 ---
 
@@ -99,9 +117,9 @@ src/
     claude.ts              ← API çağrısı (@anthropic-ai/sdk, tarayıcıdan)
     queue.ts               ← “sonra değerlendir” kuyruğu
   db/db.ts                 ← IndexedDB (Dexie) şeması
-  screens/                 ← ekranlar (Bugün, Yol, Eksiklerim, Yol Defteri, Günce, Yazılarım, Ayarlar, Oturum)
+  screens/                 ← ekranlar (Bugün, Yol, Eksiklerim, Masa, Taslak, Proje, Yol Defteri, Günce, Yazılarım, Ayarlar, Oturum)
   components/              ← adım bileşenleri, yazma akışı, ortak arayüz
-  lib/                     ← Türkçe yardımcıları (tr-TR), yedek, yönlendirici
+  lib/                     ← Türkçe yardımcıları (tr-TR), yedek (doğrulama, birleştirme), Masa (desk.ts), kelime farkı (diff.ts), yönlendirici
 ```
 
 **Teknoloji:** React + Vite + TypeScript, `vite-plugin-pwa` (Workbox) ile tam çevrimdışı PWA, Dexie (IndexedDB), gömülü yazı tipleri (Literata + Inter, `latin-ext` alt kümesi Türkçe harfleri içerir). Sunucu yok, hesap yok.
