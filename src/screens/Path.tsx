@@ -73,7 +73,11 @@ function BranchHeader({ branch, season, done }: { branch: BranchDef; season: str
       <p className="muted small" style={{ marginTop: 6 }}>{branch.description}</p>
 
       {!branch.available ? (
-        <div className="card soft small">Bu dalın dersleri henüz yazılmadı. Planlanan üniteler aşağıda.</div>
+        <div className="card soft small">
+          Bu dalın iskeleti hazır ama dersleri henüz yazılmadı; o yüzden üniteler soluk ve içine girilemiyor. İçerik
+          sırayla yazılıyor. Şimdilik dersler Hikâye dalında; Masa ise her zaman açık. Aşağıda bu dalda neler
+          olacağını görebilirsin.
+        </div>
       ) : branch.id !== season && !prereqOk ? (
         <div className="card soft small">
           Bu dal şunlar bitince açılır: {missing.map((m) => unitById.get(m)?.title).join(', ')}.
@@ -129,8 +133,10 @@ function BranchPath({
 
   return (
     <div className="path">
-      {branch.units.map((u) => {
+      {branch.units.map((u, i) => {
         const isOpen = open.has(u.id);
+        const prev = i > 0 ? branch.units[i - 1] : undefined;
+        const prevDone = prev ? prev.lessons.filter((l) => progress.get(l.id)?.completed).length : 0;
         const lessonsDone = u.lessons.filter((l) => progress.get(l.id)?.completed).length;
         const allDone = isOpen && u.lessons.length > 0 && lessonsDone === u.lessons.length && (!u.atelier || tried.has(u.atelier.id));
         const cls = u.draft ? 'draft' : !isOpen ? 'locked' : u.id === currentUnit?.id ? 'current open' : allDone ? 'done open' : 'open';
@@ -148,7 +154,13 @@ function BranchPath({
                 <div style={{ fontFamily: 'var(--serif)', fontSize: '1.1rem' }}>
                   {u.title} {!isOpen && !u.draft && <Icon.lock />}
                 </div>
-                <div className="small muted">{u.draft ? 'Yakında' : isOpen ? `${lessonsDone}/${u.lessons.length} ders` : 'Kilitli'}</div>
+                <div className="small muted">
+                  {u.draft
+                    ? 'Yakında'
+                    : isOpen
+                      ? `${lessonsDone}/${u.lessons.length} ders`
+                      : `Sırası gelince açılır · göz atılabilir${lessonsDone ? ` · ${lessonsDone}/${u.lessons.length} ders` : ''}`}
+                </div>
               </button>
               {show && (
                 <div className="rise" style={{ marginTop: 10 }}>
@@ -157,12 +169,23 @@ function BranchPath({
                     <ul className="small faint" style={{ paddingLeft: 18 }}>
                       {u.plannedLessons?.map((t) => <li key={t}>{t}</li>)}
                     </ul>
-                  ) : !isOpen ? (
-                    <div className="card soft small">
-                      Önceki ünitenin dersleri bitince ve temel becerilerinde ortalama {UNLOCK_AVG}'a ulaşınca açılır.
-                    </div>
                   ) : (
                     <>
+                      {!isOpen && (
+                        <div className="card soft small" style={{ marginBottom: 6 }}>
+                          {prev ? (
+                            <>
+                              Sırası gelince kendiliğinden açılır: “{prev.title}” ünitesinin dersleri bitince ({prevDone}/
+                              {prev.lessons.length} bitti) ve temel becerilerinde ortalama {UNLOCK_AVG}'a ulaşınca (şu an{' '}
+                              {Math.round(unitReadiness(prev, states).avg)}).
+                            </>
+                          ) : (
+                            <>Bu dalın ön koşulları tamamlanınca kendiliğinden açılır.</>
+                          )}{' '}
+                          Beklemek zorunda değilsin: aşağıdaki derslere şimdi de girebilirsin. Yaptıkların kaydedilir ve
+                          becerilerine işlenir; günlük ders ise sırayı izlemeye devam eder.
+                        </div>
+                      )}
                       {u.lessons.map((l) => {
                         const p = progress.get(l.id);
                         const total = lessonFlow(l).length;
@@ -170,7 +193,9 @@ function BranchPath({
                           <button key={l.id} className="lesson-row" onClick={() => go(`/session?lesson=${l.id}`)}>
                             <span className={`state ${p?.completed ? 'done' : p?.index ? 'part' : ''}`}>{p?.completed ? '✓' : ''}</span>
                             <span className="grow">{l.title}</span>
-                            <span className="tiny faint">{p?.completed ? 'tekrar et' : p?.index ? `${p.index}/${total}` : ''}</span>
+                            <span className="tiny faint">
+                              {p?.completed ? 'tekrar et' : p?.index ? `${p.index}/${total}` : !isOpen ? 'göz at' : ''}
+                            </span>
                           </button>
                         );
                       })}
