@@ -5,9 +5,9 @@
  * `src/content/<modül>/` altındaki veri dosyalarında durur. Yeni bir ders eklemek için
  * yalnızca bu dosyalara yeni nesneler eklemek yeterlidir; motor gerisini kendisi halleder.
  *
- * Hiyerarşi: ModuleDef → UnitDef → LessonDef → Exercise
- * Beceriler (SkillDef) modül düzeyinde tanımlanır; alıştırmalar `skills` alanıyla
- * bu becerilere etiketlenir.
+ * Hiyerarşi: Yazarlık → BranchDef (dal) → UnitDef → LessonDef → Exercise
+ * Beceriler (SkillDef) dal düzeyinde tanımlanır; alıştırmalar `skills` alanıyla
+ * bu becerilere etiketlenir. Bir alıştırma başka dalların becerilerine de etiketlenebilir.
  */
 
 export type ExerciseType =
@@ -132,6 +132,7 @@ export type RoadNoteTag = 'insan' | 'mekân' | 'an' | 'düşünce';
 
 export interface SkillDef {
   id: string;
+  /** Becerinin ait olduğu dalın kimliği (tarihsel nedenle adı moduleId; veritabanı dizini) */
   moduleId: string;
   name: string;
   /** Tek cümlelik tanım; "Eksiklerim" ekranında görünür */
@@ -169,12 +170,24 @@ export interface UnitDef {
   plannedLessons?: string[];
 }
 
-export interface ModuleDef {
+/** Yazarlık çatısı altındaki bir dal (ör. Hikâye Anlatımı, Gezi Yazısı). */
+export interface BranchDef {
   id: string;
+  /** Yoldaki sıra numarası (D1, D2…) */
+  order: number;
   title: string;
+  /** Dal seçicide görünen kısa ad */
+  short: string;
   description: string;
-  /** Hazır değilse yalnızca başlık olarak görünür */
+  /** İçeriği yazılmış en az bir ünitesi varsa true; değilse "yakında" görünür */
   available: boolean;
+  /** Seçmeli dal: motor kendiliğinden önermez, Ayarlar'dan açılır */
+  elective?: boolean;
+  /** Bu dal açılmadan önce bütün dersleri bitmiş olması gereken ünite kimlikleri */
+  prerequisites?: string[];
   skills: SkillDef[];
   units: UnitDef[];
 }
+
+/** @deprecated Eski ad. Yeni kodda BranchDef kullan. */
+export type ModuleDef = BranchDef;

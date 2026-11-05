@@ -1,14 +1,17 @@
 /**
- * Gelecek modüller: yalnızca iskelet. `available: true` yapıldığında ve üniteler
+ * Fotoğrafçılık ve Video Çekimi: Yazarlık çatısı altında, "Görüntü ve Ses İçin Yazmak"
+ * dalının kardeşleri. Yalnızca iskelet. `available: true` yapıldığında ve üniteler
  * doldurulduğunda yolda açılırlar. Beceri kimlikleri hikâye modülündeki `links`
  * alanlarıyla eşleşir; böylece "değişimi göstermek" video modülünde
  * "öncesi/sonrası planı" olarak geri döner.
  */
-import type { ModuleDef } from './types';
+import type { BranchDef } from './types';
 
-export const photographyModule: ModuleDef = {
+export const photographyModule: BranchDef = {
   id: 'foto',
+  order: 11,
   title: 'Fotoğrafçılık',
+  short: 'Fotoğraf',
   description: 'Işık, kompozisyon, anı yakalamak ve tek kareyle hikâye anlatmak.',
   available: false,
   skills: [
@@ -20,9 +23,11 @@ export const photographyModule: ModuleDef = {
   units: [],
 };
 
-export const videoModule: ModuleDef = {
+export const videoModule: BranchDef = {
   id: 'video',
+  order: 12,
   title: 'Video Çekimi',
+  short: 'Video',
   description: 'Plan türleri, hareket, ses; DJI Action 4 ve Nikon Z30 ile yormayan yöntemler.',
   available: false,
   skills: [

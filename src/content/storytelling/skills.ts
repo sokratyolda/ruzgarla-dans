@@ -27,15 +27,12 @@ export const storytellingSkills: SkillDef[] = [
   { id: 'hk.goster.beden', moduleId: m, parent: 'hk.goster', name: 'Duyguyu bedene yüklemek', description: 'Duyguyu nefese, ellere, mideye, sese taşımak.' },
   { id: 'hk.goster.nesne', moduleId: m, parent: 'hk.goster', name: 'Duyguyu nesneye ve eyleme yüklemek', description: 'Duyguyu bir eşyanın, bir hareketin, bir seçimin taşımasını sağlamak.' },
 
-  // Ünite 4–13 — yapısı hazır, içerik sonraki aşamada
-  { id: 'hk.imge', moduleId: m, name: 'İmge ve duyusal ayrıntı', description: 'Tek doğru ayrıntıyı bulmak, klişe imgeden kaçmak.', links: ['foto.ayrinti'] },
-  { id: 'hk.atmosfer', moduleId: m, name: 'Atmosfer ve mekân', description: 'Mekânın karakterin iç dünyasını taşıması.', links: ['video.mekan'] },
+  // Ünite 4–9 — yapısı hazır, içerik sonraki aşamada.
+  // (İmge, Atmosfer, Deneme ve Ekran becerileri kendi dallarına taşındı: src/content/branches.ts)
   { id: 'hk.karakter', moduleId: m, name: 'Karakter', description: 'Arzu, korku ve çelişkiyle canlı insanlar kurmak.' },
   { id: 'hk.merak', moduleId: m, name: 'Merak ve gerilim', description: 'Soru açmak, cevabı geciktirmek.' },
   { id: 'hk.bakis', moduleId: m, name: 'Bakış açısı ve anlatıcı', description: 'Kimin gözünden, hangi sesle anlatıldığını bilinçle seçmek.' },
   { id: 'hk.ritim', moduleId: m, name: 'Zaman ve ritim', description: 'Sahne ile özet arasında geçiş, cümle uzunluğuyla tempo.', links: ['video.kurgu-ritmi'] },
   { id: 'hk.diyalog', moduleId: m, name: 'Diyalog', description: 'Az konuşan ama çok şey söyleyen diyalog; alt metin.' },
   { id: 'hk.acilis', moduleId: m, name: 'Açılış ve kapanış', description: 'İlk cümlenin vaadi, kapanışın yankısı.', links: ['video.ilk-uc-saniye'] },
-  { id: 'hk.deneme', moduleId: m, name: 'Kişisel anlatı ve deneme', description: 'Deneyimden düşünceye geçmek.' },
-  { id: 'hk.ekran', moduleId: m, name: 'Ekranda hikâye', description: 'Görüntüyle, sesle ve sessizlikle anlatmak.', links: ['video.plan-turleri'] },
 ];

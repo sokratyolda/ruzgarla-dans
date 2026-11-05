@@ -9,10 +9,18 @@
  *      – zorlanılan beceride "küçük adımlar": kolay (difficulty 1) parçalar.
  * Yeni malzeme kalmadıysa (sonraki ünite henüz açılmadıysa) oturum tamamen
  * güçlendirmeye döner ve kilidi açacak temel becerilere yoğunlaşır.
+ *
+ * MEVSİM: Yeni malzeme yalnızca bu mevsimin ana dalından (settings.seasonBranch) gelir.
+ * Tekrar ise açılmış bütün dallardaki zayıf becerilerden gelir; eski dallar unutulmaz.
  */
-import { db, type SessionRecord, type SkillState } from '../db/db';
+import { db, getSettings, type SessionRecord, type SkillState } from '../db/db';
 import {
+  BRANCHES,
+  DEFAULT_BRANCH,
   allUnits,
+  branchById,
+  branchPrereqsMet,
+  contentUnits,
   exerciseById,
   lessonFlow,
   lessonById,
@@ -21,7 +29,7 @@ import {
   skillsOfUnit,
   unitById,
 } from '../content';
-import type { Exercise, LessonDef, UnitDef } from '../content/types';
+import type { BranchDef, Exercise, LessonDef, UnitDef } from '../content/types';
 import { isObjective } from '../content/types';
 import { refreshUnlocks, unitReadiness } from './unlock';
 import { today } from '../lib/tr';
@@ -43,38 +51,52 @@ const NEW_WEIGHT = 5.4; // %60
 
 type PlanItem = SessionRecord['plan'][number];
 
-export type Frontier =
+export type Frontier = { branch: BranchDef } & (
   | { kind: 'lesson'; unit: UnitDef; lesson: LessonDef; index: number }
   | { kind: 'atelier'; unit: UnitDef }
+  /** Dalın sonraki ünitesi kilitli: önceki ünitenin temel becerileri güçlenmeli */
   | { kind: 'blocked'; unit: UnitDef; next?: UnitDef }
-  | { kind: 'end' };
+  /** Dal henüz açılmadı (ön koşullar eksik) */
+  | { kind: 'locked' }
+  /** Dalın yazılmış içeriği bitti (varsa sıradaki taslak ünite) */
+  | { kind: 'end'; nextDraft?: UnitDef }
+);
 
-/** Sıradaki yeni malzeme nerede? */
-export async function findFrontier(open: Set<string>): Promise<Frontier> {
-  const units = allUnits();
+/** Mevsimin ana dalı (ayar yoksa ya da geçersizse Hikâye) */
+export async function seasonBranch(): Promise<BranchDef> {
+  const s = await getSettings();
+  const b = branchById.get(s.seasonBranch);
+  return b && b.available ? b : branchById.get(DEFAULT_BRANCH)!;
+}
+
+/** Sıradaki yeni malzeme nerede? (yalnızca verilen dalda) */
+export async function findFrontier(open: Set<string>, branch: BranchDef): Promise<Frontier> {
+  const units = contentUnits(branch);
   const progress = new Map((await db.progress.toArray()).map((p) => [p.lessonId, p]));
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     if (!open.has(u.id)) {
-      const prev = units[i - 1];
-      return u.draft ? { kind: 'end' } : { kind: 'blocked', unit: prev, next: u };
+      return i === 0 ? { kind: 'locked', branch } : { kind: 'blocked', branch, unit: units[i - 1], next: u };
     }
     for (const l of u.lessons) {
       const p = progress.get(l.id);
-      if (!p?.completed) return { kind: 'lesson', unit: u, lesson: l, index: p?.index ?? 0 };
+      if (!p?.completed) return { kind: 'lesson', branch, unit: u, lesson: l, index: p?.index ?? 0 };
     }
     if (u.atelier) {
       const done = await db.attempts.where('exerciseId').equals(u.atelier.id).count();
-      if (!done) return { kind: 'atelier', unit: u };
+      if (!done) return { kind: 'atelier', branch, unit: u };
     }
   }
-  return { kind: 'end' };
+  return { kind: 'end', branch, nextDraft: branch.units.find((u) => u.draft) };
 }
 
-/** Açık ünitelerdeki "yaprak" beceriler (alt becerisi olan üst beceriler hariç) */
-function openLeafSkills(open: Set<string>): string[] {
+/** Açık ünitelerdeki "yaprak" beceriler (alt becerisi olan üst beceriler hariç); `branchId` verilirse yalnız o dal */
+function openLeafSkills(open: Set<string>, branchId?: string): string[] {
   const set = new Set<string>();
-  for (const u of allUnits()) if (open.has(u.id)) skillsOfUnit(u).forEach((s) => set.add(s));
+  for (const b of BRANCHES) {
+    if (branchId && b.id !== branchId) continue;
+    for (const u of contentUnits(b)) if (open.has(u.id)) skillsOfUnit(u).forEach((s) => set.add(s));
+  }
   const parents = new Set([...skillById.values()].filter((s) => s.parent).map((s) => s.parent!));
   return [...set].filter((s) => !parents.has(s));
 }
@@ -92,11 +114,40 @@ export function rankWeakSkills(skills: string[], states: Map<string, SkillState>
     .sort((a, b) => a.rank - b.rank);
 }
 
-/** Şu sıralar en çok neye çalışıyoruz? (Eksiklerim ve Bugün ekranındaki tek odak) */
+/**
+ * Şu sıralar en çok neye çalışıyoruz? (Eksiklerim ve Bugün ekranındaki tek odak)
+ * Önce mevsim dalının açık becerilerine bakılır; orada açık beceri yoksa bütün dallara.
+ */
 export async function currentFocus(): Promise<string | undefined> {
   const open = await refreshUnlocks();
+  const branch = await seasonBranch();
   const states = new Map((await db.skills.toArray()).map((s) => [s.id, s]));
-  return rankWeakSkills(openLeafSkills(open), states)[0]?.id;
+  const inSeason = openLeafSkills(open, branch.id);
+  return rankWeakSkills(inSeason.length ? inSeason : openLeafSkills(open), states)[0]?.id;
+}
+
+/**
+ * Mevsim bitince önerilecek dal: içeriği olan, ön koşulları tamam, seçmeli değilse (ya da seçmeliler
+ * açıksa) ve yazılmış içeriği bitmemiş dallar arasında temel becerileri en zayıf olan.
+ */
+export async function suggestNextBranch(currentId: string): Promise<BranchDef | undefined> {
+  const s = await getSettings();
+  const progress = await db.progress.toArray();
+  const done = new Set(progress.filter((p) => p.completed).map((p) => p.lessonId));
+  const states = new Map((await db.skills.toArray()).map((x) => [x.id, x]));
+  const candidates = BRANCHES.filter(
+    (b) =>
+      b.id !== currentId &&
+      b.available &&
+      (!b.elective || s.electives.includes(b.id)) &&
+      branchPrereqsMet(b, done) &&
+      contentUnits(b).some((u) => u.lessons.some((l) => !done.has(l.id))),
+  );
+  const score = (b: BranchDef) => {
+    const keys = contentUnits(b).flatMap((u) => u.keySkills);
+    return keys.reduce((a, k) => a + (states.get(k)?.mastery ?? 0), 0) / Math.max(1, keys.length);
+  };
+  return candidates.sort((a, b) => score(a) - score(b))[0];
 }
 
 export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?: string; frontier: Frontier }> {
@@ -113,8 +164,8 @@ export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?:
   const newItems: PlanItem[] = [];
   let weight = 0;
 
-  // ——— 1) Yeni malzeme ———
-  const frontier = await findFrontier(open);
+  // ——— 1) Yeni malzeme (yalnızca mevsimin ana dalından) ———
+  const frontier = await findFrontier(open, await seasonBranch());
   if (frontier.kind === 'lesson') {
     const flow = lessonFlow(frontier.lesson);
     let w = 0;
@@ -208,7 +259,7 @@ export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?:
   return { plan, focusSkill: ranked[0]?.id, frontier };
 }
 
-/** Açık ünitelerin alıştırma havuzu + ders içi objektif sorular (kavram kartları hariç) */
+/** Açık ünitelerin (bütün dallar) alıştırma havuzu + ders içi objektif sorular (kavram kartları hariç) */
 function practicePool(open: Set<string>): Exercise[] {
   const out: Exercise[] = [];
   for (const u of allUnits()) {

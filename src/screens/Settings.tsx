@@ -6,9 +6,13 @@ import { processQueue } from '../ai/queue';
 import { downloadBackup, importData, wipeAll } from '../lib/backup';
 import { TopBar, useToast } from '../components/ui';
 import { go } from '../lib/router';
+import { BRANCHES, branchById } from '../content';
+import { formatDate, today } from '../lib/tr';
 
 export default function SettingsScreen() {
-  const s = useLiveQuery(() => db.settings.get('main'), []) ?? defaultSettings();
+  const s = useLiveQuery(async () => ({ ...defaultSettings(), ...(await db.settings.get('main')) }), []) ?? defaultSettings();
+  const seasonOptions = BRANCHES.filter((b) => b.available && (!b.elective || s.electives.includes(b.id)));
+  const electives = BRANCHES.filter((b) => b.elective);
   const [toast, show] = useToast();
   const [keyDraft, setKeyDraft] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
@@ -66,6 +70,51 @@ export default function SettingsScreen() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h3>Mevsim</h3>
+        <p className="small muted">
+          Yeni dersler yalnızca bu mevsimin dalından gelir; tekrarlar açtığın bütün dallardan. Dalı Yol ekranından da
+          değiştirebilirsin.
+        </p>
+        <label className="field">
+          <span>Bu mevsimin dalı</span>
+          <select
+            value={s.seasonBranch}
+            onChange={(e) => updateSettings({ seasonBranch: e.target.value, seasonStartedAt: today() })}
+          >
+            {seasonOptions.map((b) => (
+              <option key={b.id} value={b.id}>{b.title}</option>
+            ))}
+          </select>
+        </label>
+        {s.seasonStartedAt && (
+          <div className="tiny faint">
+            {branchById.get(s.seasonBranch)?.short} mevsimi {formatDate(s.seasonStartedAt)} tarihinde başladı.
+          </div>
+        )}
+        {electives.length > 0 && (
+          <>
+            <div className="small muted" style={{ margin: '16px 0 8px', fontWeight: 600 }}>Seçmeli dallar</div>
+            {electives.map((b) => (
+              <label key={b.id} className="row small" style={{ margin: '6px 0' }}>
+                <input
+                  type="checkbox"
+                  style={{ width: 20, height: 20 }}
+                  checked={s.electives.includes(b.id)}
+                  onChange={(e) =>
+                    updateSettings({
+                      electives: e.target.checked ? [...s.electives, b.id] : s.electives.filter((x) => x !== b.id),
+                    })
+                  }
+                />
+                {b.title}
+                {!b.available && <span className="tag">yakında</span>}
+              </label>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="card">

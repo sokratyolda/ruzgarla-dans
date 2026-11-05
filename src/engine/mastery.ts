@@ -49,7 +49,14 @@ export async function applyScore(skillId: string, score: number, source: ScoreSo
   let mastery = s.mastery + alpha * (target - s.mastery);
   mastery = Math.round(Math.max(0, Math.min(100, mastery)) * 10) / 10;
 
-  const next = sm2({ interval: s.interval, ease: s.ease, reps: s.reps }, scoreToQuality(score), t);
+  // Aralıklı tekrar günde bir kez ilerler: aynı gün aynı beceriye gelen beş doğru cevap
+  // tekrar gününü beş adım ileri atmamalı. Aynı gün gelen zayıf sonuç ise (unutma) yine işlenir.
+  const quality = scoreToQuality(score);
+  const sameDay = s.lastPracticed?.slice(0, 10) === new Date().toISOString().slice(0, 10) && s.nextReview != null;
+  const next =
+    sameDay && quality >= 3
+      ? { interval: s.interval, ease: s.ease, reps: s.reps, due: s.nextReview! }
+      : sm2({ interval: s.interval, ease: s.ease, reps: s.reps }, quality, t);
 
   let { struggle, recover, scaffold } = s;
   if (score < 0.5) {

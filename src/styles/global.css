@@ -347,3 +347,19 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 22px 0; }
   max-width: calc(100% - 40px);
   animation: rise 400ms both;
 }
+
+/* ——— Dal seçici (Yol ekranı) ——— */
+.branch-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 14px -20px 0;
+  padding: 4px 20px 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.branch-picker::-webkit-scrollbar { display: none; }
+.branch-picker .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.branch-picker .chip.dim:not(.on) { opacity: 0.55; }
+.season-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ember); display: inline-block; }
+.branch-group + .branch-group { margin-top: 26px; }

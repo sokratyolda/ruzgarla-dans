@@ -78,13 +78,14 @@ npm run icons      # public/favicon.svg'den PNG ikonları yeniden üret
 src/
   content/                 ← İÇERİK (kod değil, veri)
     types.ts               ← içerik formatı (aşağıda)
-    index.ts               ← modül kayıt defteri + hızlı erişim tabloları
-    future.ts              ← Fotoğrafçılık ve Video modüllerinin iskeleti
+    index.ts               ← dal kayıt defteri (BRANCHES) + hızlı erişim tabloları
+    branches.ts            ← Hikâye dışındaki dallar (şimdilik iskelet: başlık, beceri, planlanan dersler)
+    future.ts              ← Fotoğrafçılık ve Video dallarının iskeleti
     placement.ts           ← mini seviye tespiti
     storytelling/
       skills.ts            ← beceri ağacı
       unit01.ts … unit03.ts← tam içerikli üniteler
-      index.ts             ← modül tanımı + ünite 4–13 iskeleti
+      index.ts             ← Hikâye dalının tanımı + ünite 4–9 iskeleti
   engine/                  ← ÖĞRENME MOTORU
     planner.ts             ← günlük ders oluşturucu (%60 yeni / %40 tekrar)
     mastery.ts             ← ustalık puanı güncelleme, zorlanma takibi
@@ -109,11 +110,13 @@ src/
 
 - **Beceri ağacı:** Her becerinin 0–100 ustalık puanı var. Bazı becerilerin alt becerileri var (ör. *Değişimi görünür kılmak* → önceki hâl / kırılma anı / sonraki hâl / davranış).
 - **Puan güncelleme:** Her deneme 0–1 arası puan üretir. Etiketli her beceri için `yeni = eski + α·(100·puan − eski)`. α; kaynağa (objektif soru < öz-değerlendirme < Claude), zorluğa ve becerinin kaç kez çalışıldığına göre ayarlanır. Yanlış cevap puanı düşürür.
-- **Günlük ders:** En fazla 7 adım, yaklaşık 15–20 dakika. ~%60 sıradaki dersin akışı (ders bitince ünite atölyesi), ~%40 tekrar: vakti gelen soru kartları + en zayıf / tekrar günü gelmiş beceriler için alıştırma havuzu.
-- **Aralıklı tekrar:** Hem beceri hem soru düzeyinde SM-2. Yanlış cevaplanan soru ertesi gün geri gelir; doğru cevaplananların aralığı 1 → 3 → ~7 → … gün büyür (tavan 60 gün).
+- **Yazarlık çatısı ve dallar:** İçerik dallara ayrılır (Gözlem, Dil, Hikâye, Betimleme, Deneme, Gezi, Okuma, Ekran, Şiir, Revizyon; ayrıca Fotoğraf ve Video). Plan: `docs/YAZARLIK_PLANI.md`.
+- **Mevsim:** Her dönem bir *ana dal* seçilir (Ayarlar ya da Yol ekranı). Yeni dersler yalnızca o daldan gelir; tekrarlar açılmış bütün dallardan. Dalın yazılmış içeriği bitince oturum tekrara döner ve ön koşulları tamam, temel becerileri en zayıf dal önerilir.
+- **Günlük ders:** En fazla 7 adım, yaklaşık 15–20 dakika. ~%60 mevsim dalındaki sıradaki dersin akışı (ders bitince ünite atölyesi), ~%40 tekrar: vakti gelen soru kartları + en zayıf / tekrar günü gelmiş beceriler için alıştırma havuzu.
+- **Aralıklı tekrar:** Hem beceri hem soru düzeyinde SM-2. Yanlış cevaplanan soru ertesi gün geri gelir; doğru cevaplananların aralığı 1 → 3 → ~7 → … gün büyür (tavan 60 gün). Beceri düzeyindeki aralık günde en fazla bir kez ilerler.
 - **Küçük adımlar:** Bir beceride üst üste iki zayıf sonuç → o beceri “küçük adımlar” kipine girer; motor kolay (difficulty 1) parçalar seçer. Art arda iki iyi sonuçla normale döner. Arayüz bunu suçlamadan söyler.
-- **Kilitler:** Bir ünite, önceki ünitenin bütün dersleri bitince VE temel becerilerinde ortalama ≥ 60 (hiçbiri < 45 değil) olunca açılır. Açılan ünite açık kalır.
-- **Tek odak:** “Şu sıralar en çok şuna çalışıyoruz” cümlesi, açık ünitelerdeki en zayıf (öncelikle zorlanılan) beceriden gelir.
+- **Kilitler:** Her dal kendi içinde ilerler. Dalın ilk ünitesi, dalın ön koşulları (`prerequisites`: dersleri bitmiş olması gereken üniteler) tamamsa açılır. Sonraki ünite, önceki ünitenin bütün dersleri bitince VE temel becerilerinde ortalama ≥ 60 (hiçbiri < 45 değil) olunca açılır. Açılan ünite açık kalır.
+- **Tek odak:** “Şu sıralar en çok şuna çalışıyoruz” cümlesi, mevsim dalının açık ünitelerindeki en zayıf (öncelikle zorlanılan) beceriden gelir.
 
 ---
 
@@ -124,8 +127,10 @@ Bütün içerik `src/content/` altında, düz TypeScript nesneleri olarak durur.
 ### Hiyerarşi
 
 ```
-ModuleDef → UnitDef → LessonDef → Exercise
+Yazarlık → BranchDef (dal) → UnitDef → LessonDef → Exercise
 ```
+
+Taslak üniteler `draftUnit(...)` ile tanımlanır: yalnızca başlık, özet, temel beceriler ve planlanan ders adları.
 
 ### Ünite
 
@@ -188,17 +193,19 @@ Aynı rubrik hem öz-değerlendirmede hem Claude değerlendirmesinde kullanılı
 
 ---
 
-## 5. Yeni modül eklemek (Fotoğrafçılık, Video)
+## 5. Bir dalın içeriğini yazmak / yeni dal eklemek
 
-İskeletleri `src/content/future.ts` içinde hazır. Bir modülü açmak için:
+Dalların iskeleti `src/content/branches.ts` (ve Fotoğraf/Video için `src/content/future.ts`) içinde hazır. Bir dalın içeriğini açmak için:
 
-1. `src/content/foto/` klasörü oluştur; `skills.ts`, `unit01.ts`… ve modülü dışa aktaran `index.ts` yaz (hikâye modülünü örnek al).
-2. `src/content/index.ts` içindeki `MODULES` dizisinde `photographyModule` yerine yeni modülünü koy ve `available: true` yap.
-3. Hepsi bu. Motor, ekranlar, yedekleme ve yapay zekâ değerlendirmesi başka değişiklik gerektirmez.
+1. `src/content/<dal>/unit01.ts`… dosyalarında gerçek üniteleri yaz (Hikâye'nin `unit01.ts` dosyasını örnek al). Ünite kimliklerini iskeletteki gibi bırak (ör. `gy.u01`).
+2. `branches.ts` içinde ilgili `draftUnit(...)` çağrısını bu üniteyle değiştir ve dalın `available` alanını `true` yap.
+3. Hepsi bu. Motor, Yol ve Eksiklerim ekranları, yedekleme ve Claude değerlendirmesi başka değişiklik gerektirmez. Geliştirme kipinde (`npm run dev`) içerik denetimi konsola uyarı yazar.
 
-**Modüller arası bağlar:** Bir becerinin `links` alanı başka modüldeki akraba becerileri gösterir. Örneğin `hk.degisim` → `video.oncesi-sonrasi`. Video modülünde “öncesi/sonrası planı” alıştırmalarını hem `video.oncesi-sonrasi` hem `hk.degisim.sonraki` becerisine etiketlersen, yazıda öğrendiğin şey videoda pekişir (ve tersi).
+Tamamen yeni bir dal için `BranchDef` nesnesini yaz ve `src/content/index.ts` içindeki `BRANCHES` listesine ekle (`order` alanı yoldaki sırayı belirler; `elective: true` seçmeli yapar; `prerequisites` ön koşul ünitelerini verir).
 
-> Şimdilik Yol ve Eksiklerim ekranları ilk kullanılabilir modülü gösterir. İkinci modül açıldığında Yol ekranının başına bir modül seçici eklemek gerekecek (`src/screens/Path.tsx`, `src/screens/Gaps.tsx` — `MODULES[0]` geçen yerler).
+**Dallar arası bağlar:** Bir becerinin `links` alanı başka daldaki akraba becerileri gösterir. Örneğin `hk.degisim` → `video.oncesi-sonrasi`. Bir alıştırma birden çok dalın becerisine etiketlenebilir: video dalındaki “öncesi/sonrası planı” alıştırmasını hem `video.oncesi-sonrasi` hem `hk.degisim.sonraki` becerisine etiketlersen, yazıda öğrendiğin şey videoda pekişir (ve tersi).
+
+**Veritabanı sürümleri:** Şema değişince `src/db/db.ts` içine yeni bir `this.version(n)` eklenir; eskiler silinmez. Sürüm 2 (Yazarlık çatısı) eksik ayarları ekler ve dalı değişen becerilerin `moduleId` alanını günceller; bütün kayıtlar korunur. Eski sürüm yedekleri de geri yüklenebilir.
 
 ---
 

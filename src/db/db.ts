@@ -106,6 +106,48 @@ export interface RoadNote {
   usedIn?: string[];
 }
 
+// ——— Yazarın Masası (Aşama B'de kullanılacak; tablolar sürüm 2'de hazır) ———
+export interface Draft {
+  id: string; // UUID
+  title: string;
+  body: string;
+  kind: 'deneme' | 'öykü' | 'gezi' | 'video-metni' | 'şiir' | 'diğer';
+  tags: string[];
+  projectId?: string;
+  status: 'taslak' | 'revizyonda' | 'bitti';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DraftRevision {
+  id: string;
+  draftId: string;
+  body: string;
+  createdAt: string;
+  source: 'kontrol-noktası' | 'otomatik' | 'içe-aktarma';
+  note?: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  /** Bölüm sırası: taslak kimlikleri */
+  order: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Freewrite {
+  id?: number;
+  date: string; // ISO
+  text: string;
+  words: number;
+  seconds: number;
+}
+
+export type Tempo = 'mini' | 'standart' | 'derin';
+
 export interface Settings {
   key: 'main';
   /** Hitap için ad */
@@ -120,6 +162,20 @@ export interface Settings {
   /** Metin boyutu çarpanı */
   textScale: number;
   createdAt: string;
+  /** Bu mevsimin ana dalı: yeni malzeme yalnızca buradan gelir */
+  seasonBranch: string;
+  /** Mevsimin başladığı tarih (YYYY-MM-DD) */
+  seasonStartedAt?: string;
+  /** Günlük oturum temposu (Aşama C) */
+  tempo: Tempo;
+  /** Kuyruktaki yazıları yapay zekâya göndermeden önce sor */
+  askBeforeSend: boolean;
+  /** Oturum başında 5 dk serbest yazma ısınması (Aşama C) */
+  warmup: boolean;
+  /** Açılmış seçmeli dallar (ör. 'siir') */
+  electives: string[];
+  /** Son yedeğin alındığı an (ISO) */
+  lastBackupAt?: string;
 }
 
 export const DEFAULT_MODEL = 'claude-sonnet-5-5';
@@ -134,7 +190,23 @@ export const defaultSettings = (): Settings => ({
   onboarded: false,
   textScale: 1,
   createdAt: new Date().toISOString(),
+  seasonBranch: 'hikaye',
+  tempo: 'standart',
+  askBeforeSend: false,
+  warmup: true,
+  electives: [],
 });
+
+/**
+ * Sürüm 2'de dalı değişen beceriler. Göçler dondurulmuş kayıtlardır: içerik dosyaları
+ * sonradan değişse bile bu tablo değişmez.
+ */
+const V2_SKILL_BRANCH: Record<string, string> = {
+  'hk.imge': 'betimleme',
+  'hk.atmosfer': 'betimleme',
+  'hk.deneme': 'kurgu-disi',
+  'hk.ekran': 'ekran',
+};
 
 class AppDB extends Dexie {
   skills!: Table<SkillState, string>;
@@ -145,6 +217,10 @@ class AppDB extends Dexie {
   journal!: Table<JournalEntry, number>;
   notes!: Table<RoadNote, number>;
   settings!: Table<Settings, string>;
+  drafts!: Table<Draft, string>;
+  draftRevisions!: Table<DraftRevision, string>;
+  projects!: Table<Project, string>;
+  freewrites!: Table<Freewrite, number>;
 
   constructor() {
     super('ruzgarla-dans');
@@ -159,6 +235,36 @@ class AppDB extends Dexie {
       notes: '++id, date, *tags',
       settings: 'key',
     });
+
+    // Sürüm 2 — Yazarlık çatısı: dallar ve mevsim; Yazarın Masası tabloları.
+    // Var olan bütün kayıtlar korunur; yalnızca eksik ayarlar eklenir ve taşınan becerilerin dalı güncellenir.
+    this.version(2)
+      .stores({
+        drafts: 'id, updatedAt, projectId, status, *tags',
+        draftRevisions: 'id, draftId, createdAt',
+        projects: 'id, updatedAt',
+        freewrites: '++id, date',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((st: Partial<Settings>) => {
+            st.seasonBranch ??= 'hikaye';
+            st.seasonStartedAt ??= new Date().toISOString().slice(0, 10);
+            st.tempo ??= 'standart';
+            st.askBeforeSend ??= false;
+            st.warmup ??= true;
+            st.electives ??= [];
+          });
+        await tx
+          .table('skills')
+          .toCollection()
+          .modify((sk: SkillState) => {
+            const to = V2_SKILL_BRANCH[sk.id];
+            if (to) sk.moduleId = to;
+          });
+      });
   }
 }
 
