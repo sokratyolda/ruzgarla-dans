@@ -3,10 +3,10 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, defaultSettings } from '../db/db';
 import { buildDailyPlan, currentFocus, estimateMinutes, suggestNextBranch, type Frontier } from '../engine/planner';
 import type { BranchDef } from '../content/types';
-import { unitReadiness, UNLOCK_AVG } from '../engine/unlock';
 import { weekStats } from '../engine/stats';
 import { exerciseById, lessonById, skillById } from '../content';
-import { DAY_NAMES_SHORT, daysBetween, formatDate, genitive, greeting, today } from '../lib/tr';
+import { DAY_NAMES_SHORT, daysBetween, formatDate, greeting, today } from '../lib/tr';
+import { Icon } from '../components/ui';
 import { go } from '../lib/router';
 import type { SessionRecord } from '../db/db';
 
@@ -39,7 +39,6 @@ export default function Today() {
 
   const stats = weekStats(sessions, settings.weeklyGoal);
   const focusSkill = focus ? skillById.get(focus) : undefined;
-  const states = new Map(skills.map((s) => [s.id, s]));
 
   const plan = open?.plan ?? preview?.plan ?? [];
   const lessonTitle = (() => {
@@ -50,9 +49,14 @@ export default function Today() {
 
   return (
     <div className="fade">
-      <div className="eyebrow">{formatDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+      <div className="row between" style={{ alignItems: 'flex-start' }}>
+        <div className="eyebrow" style={{ marginTop: 12 }}>{formatDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <a className="icon-btn" href="#/settings" aria-label="Ayarlar ve yedek">
+          <Icon.gear />
+        </a>
+      </div>
       <h1>
-        {greeting()}, {settings.name || 'yolcu'}.
+        {greeting()}{settings.name ? `, ${settings.name}` : ''}.
       </h1>
 
       {/* Hafta */}
@@ -117,14 +121,6 @@ export default function Today() {
           </>
         )}
       </div>
-
-      {preview?.frontier.kind === 'blocked' && preview.frontier.next && (
-        <div className="card soft small" style={{ marginTop: 14 }}>
-          <strong>Ünite {preview.frontier.next.number}: {preview.frontier.next.title}</strong> yolun ilerisinde. Kapısı,
-          Ünite {genitive(preview.frontier.unit.number)} temel becerilerinde ortalama {UNLOCK_AVG}. Şu an{' '}
-          {Math.round(unitReadiness(preview.frontier.unit, states).avg)}. Bu yüzden şimdilik güçlendirme yapıyoruz.
-        </div>
-      )}
 
       {preview?.frontier.kind === 'end' && (
         <div className="card soft small" style={{ marginTop: 14 }}>

@@ -19,36 +19,54 @@ Adı, seviye tespitindeki şu cümleden geliyor:
    (Bunu denemek için: bir kez internetle aç, sonra uçak moduna geç ve uygulamayı ana ekrandan yeniden aç.)
 5. Yeni bir sürüm yayınlandığında, uygulamayı internetliyken açtığında kendiliğinden güncellenir. Verilerin silinmez.
 
-### Claude ile değerlendirme (isteğe bağlı)
+### Uygulamanın bölümleri
 
-Yazma alıştırmalarının gerçekten okunup değerlendirilmesi için:
+Alt gezinmede beş bölüm var; Ayarlar ve yedek, Bugün ekranının sağ üstündeki simgede.
 
-1. <https://console.anthropic.com> adresinden bir API anahtarı oluştur.
-2. Uygulamada **Daha → Ayarlar ve yedek → Claude ile değerlendirme** bölümüne yapıştır, **Kaydet** ve **Bağlantıyı dene**.
-3. Model: varsayılan `claude-sonnet-5-5`; daha ucuzu `claude-haiku-5-5`. “Başka bir model adı…” ile istediğin adı yazabilirsin.
+| Bölüm | İçinde |
+|---|---|
+| **Bugün** | Günün dersi (zayıf yanlarına göre seçilmiş en fazla 7 adım), haftalık ritim, tek odak |
+| **Yolum** | **Yol:** öğrenme dalları ve dersler (yazılmış bütün dersler ilk günden açık; uygulama yalnızca bir sıra önerir). **Gelişim:** puan değil kanıt. **Günce** |
+| **Atölyem** | **Alıştırmalar:** süreye (≤5 / 6–10 / 15+ dk) ve beceriye göre. **Serbest yazma:** zamanlayıcıyla, değerlendirmesiz. **Yazılarım:** ilk ve yeniden yazılmış hâller |
+| **Kütüphanem** | **Kaynaklar:** öneriler + kendi listen (okunacak / okunuyor / inceledim, özetin, alıntıların). **Kavramlar:** derslerdeki kavramlar + kendi kavram kartların. **Alıntılar** |
+| **Eserlerim** | **Taslaklar** (sürümler, karşılaştırma, malzeme, beceri bağlama) · **Projeler** (türe göre şablon ve defter) · **Yol Defteri** |
 
-Anahtar **yalnızca bu telefonda** (IndexedDB) saklanır ve **yalnızca** `api.anthropic.com`'a gönderilir. Yedeğe varsayılan olarak eklenmez.
+İçeriği henüz yazılmamış dallar (Gözlem, Dil, Gezi…) Yolum'da gösterilmez; altta "Geliştiriliyor" listesinde durur.
 
-Anahtar yoksa ya da çevrimdışıysan uygulama yine tam çalışır:
-- Yazdıktan sonra **öz-değerlendirme rubriği** çıkar; işaretlerin beceri profiline (daha düşük ağırlıkla) işlenir.
-- Metin **“sonra değerlendir” kuyruğuna** girer; internet gelince (ve anahtar varsa) kendiliğinden değerlendirilir. **Yazılarım** ekranından elle de başlatabilirsin.
-- **“Metni ve rubriği kopyala”** düğmesi, metnini ve ölçütleri hazır bir istemle panoya kopyalar; istediğin bir yapay zekâya yapıştırabilirsin.
+### Gelişim: puan değil kanıt
 
-### Yazarın Masası
+Uygulama hangi dersi önereceğine karar vermek için arka planda bir tahmin tutar, ama bunu sana sayı olarak göstermez. Gelişim'de her beceri için yaptıkların görünür: kaç alıştırma, kaç yazı, kaç yeniden yazım, hangi eserlerde kullandığın, en son ne zaman. Bir beceriyi **"Öğrendim"** ya da **"Tekrar denemek istiyorum"** diye işaretleyebilirsin; günlük ders buna göre ayarlanır.
 
-Alt gezinmedeki **Masa** sekmesi, alıştırmalardan bağımsız kendi yazın içindir.
+### Yardım Al (kopyala–yapıştır, senin kontrolünde)
 
-- **Taslaklar:** Deneme, gezi yazısı, öykü, video metni, şiir. Yazdığın her şey anında telefona kaydedilir (internet gerekmez). Tür, durum (taslak / revizyonda / bitti), proje ve etiket verilebilir; taslaklarda arama yapılır.
-- **Sürümler:** "Kontrol noktası al" metnin o anki hâlini notuyla saklar. Taslaktan çıkarken de (son sürümden 10 dakika geçtiyse ve metin değiştiyse) otomatik bir sürüm alınır. Herhangi bir sürümü bugünkü metinle **karşılaştırabilir** (eklenen ve çıkarılan kelimeler işaretlenir) ya da ona **geri dönebilirsin**. Geri dönmeden önce şimdiki hâl ayrıca saklanır; dönüş de geri alınabilir.
-- **Malzeme:** Yol Defteri notlarını taslağa iliştir; yazarken yanında durur, metne karışmaz.
-- **Projeler:** Taslakları bir projede topla (ör. "Yol Denemeleri"), bölüm sırasını belirle, bütün projeyi tek bir Markdown dosyası olarak indir.
-- **Yol Defteri** de Masa'nın içinde bir sekmedir.
-- Yazılarım'daki bir alıştırma metnini **Masaya al** düğmesiyle taslağa çevirip serbestçe geliştirebilirsin.
-- Bilgisayarda (geniş ekranda) metin ortada, sürümler/malzeme paneli sağda açık durur.
+Derslerde, sorularda, yazma alıştırmalarında ve taslaklarda **Yardım al** düğmesi var:
+1. Ne istediğini seç: *Metnimi değerlendir*, *Konuyu açıkla* ya da *Fikir geliştirmeme yardım et*.
+2. Uygulama o anki ders bağlamıyla bir soru taslağı hazırlar ve **tamamını gösterir**; istediğin yeri silebilir ya da düzenleyebilirsin.
+3. **Kopyala** ya da (Android'de) **Paylaş…** ile kendi seçtiğin araca (ChatGPT, Claude, başka bir yapay zekâ ya da bir öğretmen) taşırsın.
+
+Uygulama bu akışta hiçbir şey göndermez. Hazırlanan istemler yardım edenin senin yerine yazmamasını, tek bir öneri vermesini ve soru sormasını ister.
+
+### İsteğe bağlı: uygulama içinde Claude ile değerlendirme
+
+Ayarlar'da kapalı duran bir bölüm. Kendi Anthropic API anahtarını girersen yazma alıştırmaların uygulamanın içinden Claude'a gönderilip değerlendirilir (varsayılan model `claude-sonnet-5-5`, daha ucuzu `claude-haiku-5-5`). Anahtar **yalnızca bu cihazda** saklanır, **yalnızca** `api.anthropic.com`'a gider ve yedeğe varsayılan olarak eklenmez. **"Göndermeden önce sor"** açıkken her yazı gönderilmeden önce gösterilir ve bekleyen yazılar kendiliğinden gönderilmez.
+
+Anahtar yoksa ya da çevrimdışıysan: yazdıktan sonra öz-değerlendirme rubriği çıkar, metin "sonra değerlendir" kuyruğuna girer; Yardım Al her zaman çalışır.
+
+### Eserlerim (eski adıyla Masa)
+
+- **Taslaklar:** Deneme, gezi yazısı, öykü, video metni, şiir. Yazdığın her şey anında telefona kaydedilir. Tür, durum, proje, etiket ve **bu eserde uyguladığın beceriler** verilebilir (Gelişim'de kanıt olarak görünür).
+- **Sürümler:** "Kontrol noktası al" o anki hâli notuyla saklar; çıkarken de otomatik sürüm alınır. Bir sürümü bugünkü metinle **farkları işaretleyerek** ya da **yan yana** karşılaştırabilir, ona **geri dönebilirsin** (dönüş geri alınabilir).
+- **Malzeme:** Yol Defteri notlarını taslağa iliştir.
+- **Projeler ve şablonlar:** Deneme kitabı, gezi kitabı, öykü dosyası, roman, şiir dosyası, video serisi ya da serbest. Türe göre bölüm adı ve **proje defteri** değişir (roman: karakter, mekân, olay örgüsü; gezi: durak, insan; şiir dosyasında zorunlu alan yok). Proje tek Markdown dosyası olarak, istersen defteriyle birlikte indirilir.
+- Yazılarım'daki bir metni ya da bir serbest yazıyı **Eserlerime taşı** ile taslağa çevirebilirsin.
+
+### Başlangıç noktası
+
+İlk açılışta "Öğretmenle yaptığım tespiti kullan", "Kısa bir tespit yap" ya da "Sıfırdan başla" seçilir; adın isteğe bağlıdır. Tespit sana uymadıysa **Ayarlar → Başlangıç noktası → Seviye tespitini yeniden yap**: yalnızca başlangıç tahmini güncellenir, ilerlemen ve yazıların kalır.
 
 ### Yedek
 
-**Ayarlar → Yedek → Dışa aktar** tüm veriyi (beceri profili, alıştırma yazıları, Masa'daki taslaklar ve sürümleri, Yol Defteri, Günce) tek bir JSON dosyasına indirir.
+**Ayarlar → Yedek → Dışa aktar** tüm veriyi (beceri profili, alıştırma yazıları, Eserlerim'deki taslaklar, sürümler ve projeler, Kütüphanem, Yol Defteri, Günce, serbest yazılar) tek bir JSON dosyasına indirir.
 
 **İçe aktar** önce dosyayı doğrular ve içinde ne olduğunu gösterir; sonra iki seçenek sunar:
 - **Birleştir:** Bu cihazdaki her şey kalır, yedekte olup burada olmayanlar eklenir. Telefon ile MacBook arasında taşırken bunu kullan; aynı yedeği iki kez birleştirmek bir şeyi çoğaltmaz.
@@ -117,23 +135,26 @@ src/
     claude.ts              ← API çağrısı (@anthropic-ai/sdk, tarayıcıdan)
     queue.ts               ← “sonra değerlendir” kuyruğu
   db/db.ts                 ← IndexedDB (Dexie) şeması
-  screens/                 ← ekranlar (Bugün, Yol, Eksiklerim, Masa, Taslak, Proje, Yol Defteri, Günce, Yazılarım, Ayarlar, Oturum)
+  screens/                 ← ekranlar (Bugün, Yolum [Yol, Gelişim, Günce], Atölyem, Kütüphanem, Eserlerim, Taslak, Proje, Kaynak, Ayarlar, Oturum)
   components/              ← adım bileşenleri, yazma akışı, ortak arayüz
-  lib/                     ← Türkçe yardımcıları (tr-TR), yedek (doğrulama, birleştirme), Masa (desk.ts), kelime farkı (diff.ts), yönlendirici
+  lib/                     ← Türkçe yardımcıları (tr-TR), yedek (doğrulama, birleştirme), Eserlerim ve proje şablonları (desk.ts), kelime farkı (diff.ts), yönlendirici
+  ai/help.ts               ← Yardım Al istemleri (uygulama dışı, kopyala–yapıştır)
+  content/library.ts       ← Kütüphanem'deki önerilen kaynaklar
 ```
 
 **Teknoloji:** React + Vite + TypeScript, `vite-plugin-pwa` (Workbox) ile tam çevrimdışı PWA, Dexie (IndexedDB), gömülü yazı tipleri (Literata + Inter, `latin-ext` alt kümesi Türkçe harfleri içerir). Sunucu yok, hesap yok.
 
 ### Öğrenme motoru nasıl çalışır?
 
-- **Beceri ağacı:** Her becerinin 0–100 ustalık puanı var. Bazı becerilerin alt becerileri var (ör. *Değişimi görünür kılmak* → önceki hâl / kırılma anı / sonraki hâl / davranış).
+- **Beceri ağacı:** Her becerinin motorun içinde 0–100 arası bir tahmini var (ekranda gösterilmez). Bazı becerilerin alt becerileri var (ör. *Değişimi görünür kılmak* → önceki hâl / kırılma anı / sonraki hâl / davranış).
 - **Puan güncelleme:** Her deneme 0–1 arası puan üretir. Etiketli her beceri için `yeni = eski + α·(100·puan − eski)`. α; kaynağa (objektif soru < öz-değerlendirme < Claude), zorluğa ve becerinin kaç kez çalışıldığına göre ayarlanır. Yanlış cevap puanı düşürür.
 - **Yazarlık çatısı ve dallar:** İçerik dallara ayrılır (Gözlem, Dil, Hikâye, Betimleme, Deneme, Gezi, Okuma, Ekran, Şiir, Revizyon; ayrıca Fotoğraf ve Video). Plan: `docs/YAZARLIK_PLANI.md`.
 - **Mevsim:** Her dönem bir *ana dal* seçilir (Ayarlar ya da Yol ekranı). Yeni dersler yalnızca o daldan gelir; tekrarlar açılmış bütün dallardan. Dalın yazılmış içeriği bitince oturum tekrara döner ve ön koşulları tamam, temel becerileri en zayıf dal önerilir.
 - **Günlük ders:** En fazla 7 adım, yaklaşık 15–20 dakika. ~%60 mevsim dalındaki sıradaki dersin akışı (ders bitince ünite atölyesi), ~%40 tekrar: vakti gelen soru kartları + en zayıf / tekrar günü gelmiş beceriler için alıştırma havuzu.
 - **Aralıklı tekrar:** Hem beceri hem soru düzeyinde SM-2. Yanlış cevaplanan soru ertesi gün geri gelir; doğru cevaplananların aralığı 1 → 3 → ~7 → … gün büyür (tavan 60 gün). Beceri düzeyindeki aralık günde en fazla bir kez ilerler.
 - **Küçük adımlar:** Bir beceride üst üste iki zayıf sonuç → o beceri “küçük adımlar” kipine girer; motor kolay (difficulty 1) parçalar seçer. Art arda iki iyi sonuçla normale döner. Arayüz bunu suçlamadan söyler.
-- **Kilitler:** Her dal kendi içinde ilerler. Dalın ilk ünitesi, dalın ön koşulları (`prerequisites`: dersleri bitmiş olması gereken üniteler) tamamsa açılır. Sonraki ünite, önceki ünitenin bütün dersleri bitince VE temel becerilerinde ortalama ≥ 60 (hiçbiri < 45 değil) olunca açılır. Açılan ünite açık kalır.
+- **Erişim:** Kilit yok. Yazılmış bütün dersler ilk günden açık; uygulama yalnızca bir sıra önerir ("önerilen durak"). Tekrarlar yalnızca **başladığın** ünitelerden gelir; henüz girmediğin bir ünitenin soruları tekrar olarak karşına çıkmaz.
+- **Kendi işaretin:** "Tekrar denemek istiyorum" dediğin beceriler öne alınır, "Öğrendim" dediklerin biraz geri çekilir.
 - **Tek odak:** “Şu sıralar en çok şuna çalışıyoruz” cümlesi, mevsim dalının açık ünitelerindeki en zayıf (öncelikle zorlanılan) beceriden gelir.
 
 ---
@@ -217,13 +238,13 @@ Dalların iskeleti `src/content/branches.ts` (ve Fotoğraf/Video için `src/cont
 
 1. `src/content/<dal>/unit01.ts`… dosyalarında gerçek üniteleri yaz (Hikâye'nin `unit01.ts` dosyasını örnek al). Ünite kimliklerini iskeletteki gibi bırak (ör. `gy.u01`).
 2. `branches.ts` içinde ilgili `draftUnit(...)` çağrısını bu üniteyle değiştir ve dalın `available` alanını `true` yap.
-3. Hepsi bu. Motor, Yol ve Eksiklerim ekranları, yedekleme ve Claude değerlendirmesi başka değişiklik gerektirmez. Geliştirme kipinde (`npm run dev`) içerik denetimi konsola uyarı yazar.
+3. Hepsi bu. Motor, Yolum ve Gelişim ekranları, Atölyem, yedekleme ve değerlendirme başka değişiklik gerektirmez. Geliştirme kipinde (`npm run dev`) içerik denetimi konsola uyarı yazar.
 
 Tamamen yeni bir dal için `BranchDef` nesnesini yaz ve `src/content/index.ts` içindeki `BRANCHES` listesine ekle (`order` alanı yoldaki sırayı belirler; `elective: true` seçmeli yapar; `prerequisites` ön koşul ünitelerini verir).
 
 **Dallar arası bağlar:** Bir becerinin `links` alanı başka daldaki akraba becerileri gösterir. Örneğin `hk.degisim` → `video.oncesi-sonrasi`. Bir alıştırma birden çok dalın becerisine etiketlenebilir: video dalındaki “öncesi/sonrası planı” alıştırmasını hem `video.oncesi-sonrasi` hem `hk.degisim.sonraki` becerisine etiketlersen, yazıda öğrendiğin şey videoda pekişir (ve tersi).
 
-**Veritabanı sürümleri:** Şema değişince `src/db/db.ts` içine yeni bir `this.version(n)` eklenir; eskiler silinmez. Sürüm 2 (Yazarlık çatısı) eksik ayarları ekler ve dalı değişen becerilerin `moduleId` alanını günceller; bütün kayıtlar korunur. Eski sürüm yedekleri de geri yüklenebilir.
+**Veritabanı sürümleri:** Şema değişince `src/db/db.ts` içine yeni bir `this.version(n)` eklenir; eskiler silinmez. Sürüm 2 (Yazarlık çatısı) eksik ayarları ekler ve dalı değişen becerilerin `moduleId` alanını günceller; sürüm 3 Kütüphanem tablolarını (`sources`, `concepts`) ekler. Bütün kayıtlar korunur. Eski sürüm yedekleri de geri yüklenebilir.
 
 ---
 

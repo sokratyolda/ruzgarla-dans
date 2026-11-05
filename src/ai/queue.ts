@@ -17,10 +17,12 @@ export async function pendingCount() {
   return db.attempts.where('pendingReview').equals(1).count();
 }
 
-export async function processQueue(): Promise<{ done: number; failed: number; message?: string }> {
+/** `auto`: internet geldiğinde kendiliğinden çağrıldı; "göndermeden önce sor" açıksa hiçbir şey göndermez. */
+export async function processQueue(auto = false): Promise<{ done: number; failed: number; message?: string }> {
   if (running) return { done: 0, failed: 0 };
   const settings = await getSettings();
   if (!settings.apiKey || !navigator.onLine) return { done: 0, failed: 0 };
+  if (auto && settings.askBeforeSend) return { done: 0, failed: 0 };
   running = true;
   let done = 0;
   let failed = 0;
@@ -54,7 +56,7 @@ export async function processQueue(): Promise<{ done: number; failed: number; me
 
 /** Uygulama başlarken bir kez çağrılır */
 export function startQueueWatcher() {
-  const run = () => void processQueue();
+  const run = () => void processQueue(true);
   window.addEventListener('online', run);
   setTimeout(run, 2500);
 }

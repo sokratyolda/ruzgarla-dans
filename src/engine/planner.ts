@@ -7,11 +7,14 @@
  *      – vakti gelen soru kartları (aralıklı tekrar),
  *      – en zayıf ya da tekrar günü gelmiş beceriler için alıştırma havuzundan seçim,
  *      – zorlanılan beceride "küçük adımlar": kolay (difficulty 1) parçalar.
- * Yeni malzeme kalmadıysa (sonraki ünite henüz açılmadıysa) oturum tamamen
- * güçlendirmeye döner ve kilidi açacak temel becerilere yoğunlaşır.
+ * Dalın yazılmış içeriği bittiyse oturum tamamen güçlendirmeye döner.
  *
  * MEVSİM: Yeni malzeme yalnızca bu mevsimin ana dalından (settings.seasonBranch) gelir.
- * Tekrar ise açılmış bütün dallardaki zayıf becerilerden gelir; eski dallar unutulmaz.
+ * Tekrar ise bütün dallarda BAŞLADIĞIN ünitelerden gelir (henüz girmediğin ünitelerin
+ * soruları tekrar olarak karşına çıkmaz). Hiçbir ders kilitli değildir; sıra yalnızca öneridir.
+ *
+ * Kendi işaretin: "tekrar denemek istiyorum" dediğin beceriler öne alınır,
+ * "öğrendim" dediklerin biraz geri çekilir.
  */
 import { db, getSettings, type SessionRecord, type SkillState } from '../db/db';
 import {
@@ -19,7 +22,6 @@ import {
   DEFAULT_BRANCH,
   allUnits,
   branchById,
-  branchPrereqsMet,
   contentUnits,
   exerciseById,
   lessonFlow,
@@ -31,7 +33,7 @@ import {
 } from '../content';
 import type { BranchDef, Exercise, LessonDef, UnitDef } from '../content/types';
 import { isObjective } from '../content/types';
-import { refreshUnlocks, unitReadiness } from './unlock';
+import { unitReadiness } from './unlock';
 import { today } from '../lib/tr';
 
 export const WEIGHT: Record<Exercise['type'], number> = {
@@ -54,10 +56,6 @@ type PlanItem = SessionRecord['plan'][number];
 export type Frontier = { branch: BranchDef } & (
   | { kind: 'lesson'; unit: UnitDef; lesson: LessonDef; index: number }
   | { kind: 'atelier'; unit: UnitDef }
-  /** Dalın sonraki ünitesi kilitli: önceki ünitenin temel becerileri güçlenmeli */
-  | { kind: 'blocked'; unit: UnitDef; next?: UnitDef }
-  /** Dal henüz açılmadı (ön koşullar eksik) */
-  | { kind: 'locked' }
   /** Dalın yazılmış içeriği bitti (varsa sıradaki taslak ünite) */
   | { kind: 'end'; nextDraft?: UnitDef }
 );
@@ -69,15 +67,11 @@ export async function seasonBranch(): Promise<BranchDef> {
   return b && b.available ? b : branchById.get(DEFAULT_BRANCH)!;
 }
 
-/** Sıradaki yeni malzeme nerede? (yalnızca verilen dalda) */
-export async function findFrontier(open: Set<string>, branch: BranchDef): Promise<Frontier> {
+/** Önerilen sıradaki yeni malzeme nerede? (yalnızca verilen dalda; ilk bitmemiş ders) */
+export async function findFrontier(branch: BranchDef): Promise<Frontier> {
   const units = contentUnits(branch);
   const progress = new Map((await db.progress.toArray()).map((p) => [p.lessonId, p]));
-  for (let i = 0; i < units.length; i++) {
-    const u = units[i];
-    if (!open.has(u.id)) {
-      return i === 0 ? { kind: 'locked', branch } : { kind: 'blocked', branch, unit: units[i - 1], next: u };
-    }
+  for (const u of units) {
     for (const l of u.lessons) {
       const p = progress.get(l.id);
       if (!p?.completed) return { kind: 'lesson', branch, unit: u, lesson: l, index: p?.index ?? 0 };
@@ -90,7 +84,38 @@ export async function findFrontier(open: Set<string>, branch: BranchDef): Promis
   return { kind: 'end', branch, nextDraft: branch.units.find((u) => u.draft) };
 }
 
-/** Açık ünitelerdeki "yaprak" beceriler (alt becerisi olan üst beceriler hariç); `branchId` verilirse yalnız o dal */
+/**
+ * Aktif üniteler: içinde en az bir adım yaptığın üniteler + önerilen sıradaki ünite
+ * + mevsim dalında ondan önceki üniteler. Tekrar havuzu ve odak bunlardan seçilir.
+ */
+export async function activeUnits(frontier?: Frontier): Promise<Set<string>> {
+  const active = new Set<string>();
+  const progress = await db.progress.toArray();
+  for (const p of progress) {
+    if (p.completed || p.index > 0) {
+      const u = lessonById.has(p.lessonId) ? [...unitById.values()].find((x) => x.lessons.some((l) => l.id === p.lessonId)) : undefined;
+      if (u) active.add(u.id);
+    }
+  }
+  const tried = new Set((await db.attempts.toArray()).map((a) => a.exerciseId));
+  for (const b of BRANCHES) {
+    if (!b.available) continue;
+    for (const u of contentUnits(b)) {
+      const exs = [...u.lessons.flatMap(lessonFlow), ...u.practice, ...(u.atelier ? [u.atelier] : [])];
+      if (exs.some((e) => tried.has(e.id))) active.add(u.id);
+    }
+  }
+  const f = frontier ?? (await findFrontier(await seasonBranch()));
+  if (f.kind === 'lesson' || f.kind === 'atelier') {
+    for (const u of contentUnits(f.branch)) {
+      active.add(u.id);
+      if (u.id === f.unit.id) break;
+    }
+  }
+  return active;
+}
+
+/** Aktif ünitelerdeki "yaprak" beceriler (alt becerisi olan üst beceriler hariç); `branchId` verilirse yalnız o dal */
 function openLeafSkills(open: Set<string>, branchId?: string): string[] {
   const set = new Set<string>();
   for (const b of BRANCHES) {
@@ -108,7 +133,8 @@ export function rankWeakSkills(skills: string[], states: Map<string, SkillState>
       const s = states.get(id);
       const mastery = s?.mastery ?? 0;
       const due = s?.nextReview ? s.nextReview <= t : false;
-      const rank = mastery - (s?.scaffold ? 50 : 0) - (due ? 15 : 0);
+      const mark = s?.selfMark === 'tekrar' ? -30 : s?.selfMark === 'ogrendim' ? 12 : 0;
+      const rank = mastery - (s?.scaffold ? 50 : 0) - (due ? 15 : 0) + mark;
       return { id, mastery, due, scaffold: !!s?.scaffold, rank };
     })
     .sort((a, b) => a.rank - b.rank);
@@ -119,7 +145,7 @@ export function rankWeakSkills(skills: string[], states: Map<string, SkillState>
  * Önce mevsim dalının açık becerilerine bakılır; orada açık beceri yoksa bütün dallara.
  */
 export async function currentFocus(): Promise<string | undefined> {
-  const open = await refreshUnlocks();
+  const open = await activeUnits();
   const branch = await seasonBranch();
   const states = new Map((await db.skills.toArray()).map((s) => [s.id, s]));
   const inSeason = openLeafSkills(open, branch.id);
@@ -127,8 +153,8 @@ export async function currentFocus(): Promise<string | undefined> {
 }
 
 /**
- * Mevsim bitince önerilecek dal: içeriği olan, ön koşulları tamam, seçmeli değilse (ya da seçmeliler
- * açıksa) ve yazılmış içeriği bitmemiş dallar arasında temel becerileri en zayıf olan.
+ * Mevsim bitince önerilecek dal: içeriği olan, seçmeli değilse (ya da seçmeliler açıksa)
+ * ve yazılmış içeriği bitmemiş dallar arasında temel becerileri en zayıf olan.
  */
 export async function suggestNextBranch(currentId: string): Promise<BranchDef | undefined> {
   const s = await getSettings();
@@ -140,7 +166,6 @@ export async function suggestNextBranch(currentId: string): Promise<BranchDef | 
       b.id !== currentId &&
       b.available &&
       (!b.elective || s.electives.includes(b.id)) &&
-      branchPrereqsMet(b, done) &&
       contentUnits(b).some((u) => u.lessons.some((l) => !done.has(l.id))),
   );
   const score = (b: BranchDef) => {
@@ -152,7 +177,6 @@ export async function suggestNextBranch(currentId: string): Promise<BranchDef | 
 
 export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?: string; frontier: Frontier }> {
   const t = today();
-  const open = await refreshUnlocks();
   const states = new Map((await db.skills.toArray()).map((s) => [s.id, s]));
   const attempts = await db.attempts.toArray();
   const lastTried = new Map<string, string>();
@@ -165,7 +189,8 @@ export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?:
   let weight = 0;
 
   // ——— 1) Yeni malzeme (yalnızca mevsimin ana dalından) ———
-  const frontier = await findFrontier(open, await seasonBranch());
+  const frontier = await findFrontier(await seasonBranch());
+  const open = await activeUnits(frontier);
   if (frontier.kind === 'lesson') {
     const flow = lessonFlow(frontier.lesson);
     let w = 0;
@@ -208,9 +233,7 @@ export async function buildDailyPlan(): Promise<{ plan: PlanItem[]; focusSkill?:
   }
 
   // 2b) Zayıf beceriler için havuzdan seçim
-  let skills = openLeafSkills(open);
-  // Yeni malzeme yoksa: kilidi açacak temel becerilere odaklan
-  if (frontier.kind === 'blocked') skills = frontier.unit.keySkills.filter((s) => skills.includes(s));
+  const skills = openLeafSkills(open);
   const ranked = rankWeakSkills(skills, states, t);
   const pool = practicePool(open);
   const completed = new Set((await db.progress.toArray()).filter((p) => p.completed).map((p) => p.lessonId));

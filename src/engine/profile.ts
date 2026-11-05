@@ -66,3 +66,15 @@ export function placementToProfile(correct: boolean[], self: number[]): Record<s
     'hk.goster.nesne': base(correct[2], 10, 25),
   };
 }
+
+/**
+ * Seviye tespiti yeniden yapıldığında: yalnızca tespitin kapsadığı becerilerin tahminini günceller.
+ * Ders ilerlemen, yazıların ve diğer beceriler olduğu gibi kalır.
+ */
+export async function applyProfileUpdate(profile: Record<string, number>) {
+  const t = today();
+  for (const [id, m] of Object.entries(profile)) {
+    const cur = (await db.skills.get(id)) ?? blankSkill(id);
+    await db.skills.put({ ...cur, mastery: m, scaffold: false, struggle: 0, nextReview: addDays(t, m < 40 ? 0 : 2) });
+  }
+}

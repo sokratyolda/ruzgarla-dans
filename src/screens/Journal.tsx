@@ -5,7 +5,8 @@ import { db } from '../db/db';
 import { formatDate } from '../lib/tr';
 import { TopBar } from '../components/ui';
 
-export default function Journal() {
+/** `embedded`: Yolum içinde sekme olarak gösterilir (üst başlık gizlenir). */
+export default function Journal({ embedded = false }: { embedded?: boolean }) {
   const entries = useLiveQuery(() => db.journal.orderBy('date').toArray(), []) ?? [];
   const [text, setText] = useState('');
   const [newestFirst, setNewestFirst] = useState(false);
@@ -25,8 +26,14 @@ export default function Journal() {
   }
 
   return (
-    <div className="fade">
-      <TopBar title="Günce" right={<button className="linkish small" onClick={() => setNewestFirst(!newestFirst)}>{newestFirst ? 'Eskiden yeniye' : 'Yeniden eskiye'}</button>} />
+    <div className={embedded ? '' : 'fade'}>
+      {embedded ? (
+        <div className="row end">
+          <button className="linkish small" onClick={() => setNewestFirst(!newestFirst)}>{newestFirst ? 'Eskiden yeniye' : 'Yeniden eskiye'}</button>
+        </div>
+      ) : (
+        <TopBar title="Günce" right={<button className="linkish small" onClick={() => setNewestFirst(!newestFirst)}>{newestFirst ? 'Eskiden yeniye' : 'Yeniden eskiye'}</button>} />
+      )}
       <p className="small muted">Bugün ne öğrendim, kendi cümlelerimle. Zamanla bir öğrenme günlüğüne dönüşür.</p>
       <textarea lang="tr" value={text} onChange={(e) => setText(e.target.value)} style={{ minHeight: 100 }} placeholder="Bugün fark ettim ki…" />
       <button className="btn primary block" style={{ marginTop: 10 }} disabled={!text.trim()} onClick={add}>Ekle</button>

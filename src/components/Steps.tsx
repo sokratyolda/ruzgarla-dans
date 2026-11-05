@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { ChoiceExercise, ConceptExercise, DiscernExercise, MissingExercise } from '../content/types';
 import { recordObjective } from '../engine/record';
 import { Prose } from './ui';
+import { HelpButton } from './HelpSheet';
 
 export function ConceptStep({ ex, onDone }: { ex: ConceptExercise; onDone: () => void }) {
   return (
@@ -22,6 +23,11 @@ export function ConceptStep({ ex, onDone }: { ex: ConceptExercise; onDone: () =>
           {ex.takeaway}
         </p>
       )}
+      <HelpButton
+        context={{ title: ex.title, concept: [...ex.body, ex.takeaway ?? ''].join(' '), skills: ex.skills }}
+        modes={['acikla', 'fikir']}
+        label="Anlamadığım yer var"
+      />
       <div className="bottom-spacer" />
       <div className="bottom-bar">
         <div className="inner">
@@ -87,6 +93,17 @@ export function ObjectiveStep({ ex, sessionId, onDone }: { ex: Objective; sessio
         <div className={`explain ${right ? 'good' : 'bad'}`}>
           <div className="label">{right ? 'Doğru.' : 'Bu sefer değil. Bu soru yakında yeniden karşına çıkacak.'}</div>
           <div className="small">{ex.explanation}</div>
+          <div style={{ marginTop: 8 }}>
+            <HelpButton
+              context={{
+                task: `${ex.prompt}${ex.type === 'missing' ? `\n${ex.draft}` : ''}\nSeçenekler: ${ex.options.join(' / ')}\nDoğru cevap: ${ex.options[ex.correct]}\nUygulamanın açıklaması: ${ex.explanation}`,
+                skills: ex.skills,
+              }}
+              modes={['acikla']}
+              label="Neden böyle? Başka bir örnekle anlat"
+              className="linkish small"
+            />
+          </div>
         </div>
       )}
 

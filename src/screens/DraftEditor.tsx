@@ -23,6 +23,8 @@ import { diffStats, wordDiff } from '../lib/diff';
 import { formatDate, formatTime, normalize, wordCount } from '../lib/tr';
 import { go } from '../lib/router';
 import { TopBar, useToast } from '../components/ui';
+import SkillPicker from '../components/SkillPicker';
+import { HelpButton } from '../components/HelpSheet';
 
 type Panel = 'surumler' | 'malzeme' | null;
 
@@ -170,7 +172,14 @@ function Editor({ draft }: { draft: Draft }) {
           <span>
             {words} kelime · ~{minutes} dk okuma
           </span>
-          <button className="linkish tiny" onClick={() => setPanel('surumler')}>Kontrol noktası al</button>
+          <span className="row" style={{ gap: 12 }}>
+            <HelpButton
+              context={{ title: title || undefined, text: body.trim() || undefined, skills: live.skills }}
+              modes={['degerlendir', 'fikir']}
+              className="linkish tiny"
+            />
+            <button className="linkish tiny" onClick={() => setPanel('surumler')}>Kontrol noktası al</button>
+          </span>
         </div>
 
         <details className="card soft" style={{ marginTop: 18 }}>
@@ -241,6 +250,11 @@ function Meta({ draft, projects }: { draft: Draft; projects: { id: string; title
           ))}
         </select>
       </label>
+      <SkillPicker
+        value={draft.skills ?? []}
+        onChange={(skills) => updateDraft(draft.id, { skills })}
+        label="Bu eserde uyguladığın beceriler (Gelişim'de kanıt olarak görünür)"
+      />
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Etiketler (virgülle)</span>
         <input
@@ -331,6 +345,7 @@ function Compare({
 }) {
   const parts = wordDiff(rev.body, currentBody);
   const stats = parts ? diffStats(parts) : null;
+  const [sideBySide, setSideBySide] = useState(!parts);
 
   const restore = async () => {
     if (!window.confirm('Metin bu sürüme dönsün mü? Şimdiki hâl ayrıca saklanacak; istersen geri dönebilirsin.')) return;
@@ -352,7 +367,11 @@ function Compare({
         <br />
         <span className="diff-del">üstü çizili</span> = o sürümde vardı, şimdi yok · <span className="diff-add">altı çizili</span> = sonradan eklendi
       </p>
-      {parts ? (
+      <div className="seg" role="group" aria-label="Görünüm" style={{ margin: '8px 0' }}>
+        <button className={!sideBySide ? 'on' : ''} aria-pressed={!sideBySide} disabled={!parts} onClick={() => setSideBySide(false)}>Farkları işaretle</button>
+        <button className={sideBySide ? 'on' : ''} aria-pressed={sideBySide} onClick={() => setSideBySide(true)}>Yan yana</button>
+      </div>
+      {parts && !sideBySide ? (
         <div className="diff">
           {parts.map((p, i) => (
             <span key={i} className={p.type === 'add' ? 'diff-add' : p.type === 'del' ? 'diff-del' : undefined}>
@@ -362,8 +381,14 @@ function Compare({
         </div>
       ) : (
         <div className="compare">
-          <div className="card soft diff">{rev.body}</div>
-          <div className="card soft diff">{currentBody}</div>
+          <div className="card soft diff" style={{ marginTop: 0 }}>
+            <div className="eyebrow">O sürüm</div>
+            {rev.body}
+          </div>
+          <div className="card soft diff" style={{ marginTop: 0 }}>
+            <div className="eyebrow">Şimdi</div>
+            {currentBody}
+          </div>
         </div>
       )}
       <button className="btn small block" style={{ marginTop: 12 }} onClick={restore}>

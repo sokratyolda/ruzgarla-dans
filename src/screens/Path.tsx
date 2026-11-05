@@ -1,93 +1,88 @@
 /**
- * Yol: Yazarlık çatısının haritası. Üstte dal seçici, altta seçili dalın üniteleri
- * bir patikadaki duraklar gibi. Açık ünitelerin dersleri istenen anda çalışılabilir.
+ * Yol: öğrenme dalları ve dersler. Yazılmış bütün dersler açıktır; uygulama yalnızca bir sıra önerir
+ * ("şu anki durak"). İçeriği henüz yazılmamış dallar seçicide görünmez; altta "Geliştiriliyor" listesindedir.
  */
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, defaultSettings, updateSettings } from '../db/db';
-import { BRANCHES, DEFAULT_BRANCH, branchPrereqsMet, lessonFlow, skillById, unitById } from '../content';
+import { BRANCHES, DEFAULT_BRANCH, lessonFlow, skillById } from '../content';
 import type { BranchDef } from '../content/types';
-import { openUnitsFrom, unitReadiness, UNLOCK_AVG } from '../engine/unlock';
 import { go } from '../lib/router';
-import { Icon } from '../components/ui';
 import { today } from '../lib/tr';
 
-export default function PathScreen() {
+export default function PathBody() {
   const settings = useLiveQuery(async () => ({ ...defaultSettings(), ...(await db.settings.get('main')) }), []);
   const progress = useLiveQuery(() => db.progress.toArray(), []) ?? [];
-  const skills = useLiveQuery(() => db.skills.toArray(), []) ?? [];
   const tried = useLiveQuery(async () => new Set((await db.attempts.toArray()).map((a) => a.exerciseId)), []) ?? new Set<string>();
   const [picked, setPicked] = useState<string | null>(null);
 
+  const ready = BRANCHES.filter((b) => b.available && (!b.elective || settings?.electives.includes(b.id)));
+  const upcoming = BRANCHES.filter((b) => !b.available);
   const season = settings?.seasonBranch ?? DEFAULT_BRANCH;
-  const branch = BRANCHES.find((b) => b.id === (picked ?? season)) ?? BRANCHES[0];
-  const done = new Set(progress.filter((p) => p.completed).map((p) => p.lessonId));
-  const open = openUnitsFrom(done);
+  const branch = ready.find((b) => b.id === (picked ?? season)) ?? ready[0];
 
   return (
-    <div className="fade">
-      <div className="eyebrow">Yol</div>
-      <h1>Yazarlık</h1>
+    <div>
+      {ready.length > 1 && (
+        <div className="branch-picker" role="tablist" aria-label="Dallar">
+          {ready.map((b) => (
+            <button key={b.id} role="tab" aria-selected={b.id === branch.id} className={`chip ${b.id === branch.id ? 'on' : ''}`} onClick={() => setPicked(b.id)}>
+              {b.id === season && <span className="season-dot" aria-label="bu mevsim" />}
+              {b.short}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div className="branch-picker" role="tablist" aria-label="Dallar">
-        {BRANCHES.map((b) => (
-          <button
-            key={b.id}
-            role="tab"
-            aria-selected={b.id === branch.id}
-            className={`chip ${b.id === branch.id ? 'on' : ''} ${b.available ? '' : 'dim'}`}
-            onClick={() => setPicked(b.id)}
-          >
-            {b.id === season && <span className="season-dot" aria-label="bu mevsim" />}
-            {b.short}
-          </button>
-        ))}
-      </div>
+      {branch && (
+        <>
+          <BranchHeader branch={branch} season={season} />
+          <BranchPath key={branch.id} branch={branch} progress={new Map(progress.map((p) => [p.lessonId, p]))} tried={tried} />
+        </>
+      )}
 
-      <BranchHeader branch={branch} season={season} done={done} />
-
-      <BranchPath
-        key={branch.id}
-        branch={branch}
-        open={open}
-        progress={new Map(progress.map((p) => [p.lessonId, p]))}
-        states={new Map(skills.map((s) => [s.id, s]))}
-        tried={tried}
-      />
+      {upcoming.length > 0 && (
+        <section style={{ marginTop: 28 }}>
+          <div className="eyebrow">Geliştiriliyor</div>
+          <p className="small muted">
+            Bu dalların dersleri henüz yazılmadı; hazır oldukça yukarıya eklenecekler. Şimdilik Eserlerim ve Kütüphanem her
+            konuda serbestçe kullanılabilir.
+          </p>
+          <div className="list">
+            {upcoming.map((b) => (
+              <details key={b.id} className="item">
+                <summary style={{ cursor: 'pointer' }}>
+                  <span style={{ fontFamily: 'var(--serif)' }}>{b.title}</span>
+                </summary>
+                <p className="small muted" style={{ margin: '6px 0' }}>{b.description}</p>
+                <ul className="small faint" style={{ paddingLeft: 18, margin: 0 }}>
+                  {b.units.map((u) => (
+                    <li key={u.id}>{u.title}</li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-function BranchHeader({ branch, season, done }: { branch: BranchDef; season: string; done: Set<string> }) {
+function BranchHeader({ branch, season }: { branch: BranchDef; season: string }) {
   const [confirm, setConfirm] = useState(false);
-  const prereqOk = branchPrereqsMet(branch, done);
-  const missing = (branch.prerequisites ?? []).filter((uid) => !unitById.get(uid)?.lessons.every((l) => done.has(l.id)));
-
   return (
-    <div style={{ margin: '18px 0 6px' }}>
+    <div style={{ margin: '14px 0 6px' }}>
       <div className="row between">
         <h2 style={{ margin: 0 }}>{branch.title}</h2>
         {branch.id === season && <span className="tag ember">bu mevsim</span>}
-        {branch.elective && <span className="tag">seçmeli</span>}
       </div>
       <p className="muted small" style={{ marginTop: 6 }}>{branch.description}</p>
-
-      {!branch.available ? (
-        <div className="card soft small">
-          Bu dalın iskeleti hazır ama dersleri henüz yazılmadı; o yüzden üniteler soluk ve içine girilemiyor. İçerik
-          sırayla yazılıyor. Şimdilik dersler Hikâye dalında; Masa ise her zaman açık. Aşağıda bu dalda neler
-          olacağını görebilirsin.
-        </div>
-      ) : branch.id !== season && !prereqOk ? (
-        <div className="card soft small">
-          Bu dal şunlar bitince açılır: {missing.map((m) => unitById.get(m)?.title).join(', ')}.
-        </div>
-      ) : branch.id !== season ? (
-        <div className="card soft small">
+      {branch.id !== season && (
+        <div className="small">
           {confirm ? (
-            <>
-              Yeni dersler bundan sonra bu daldan gelecek. Tekrarlar bütün dallardan gelmeye devam eder; ilerlemen
-              kaybolmaz.
+            <div className="card soft">
+              Günlük derste yeni adımlar bundan sonra bu daldan gelir; tekrarlar bütün dallardan sürer.
               <div className="row" style={{ marginTop: 10 }}>
                 <button className="btn small ghost" onClick={() => setConfirm(false)}>Vazgeç</button>
                 <button
@@ -100,108 +95,78 @@ function BranchHeader({ branch, season, done }: { branch: BranchDef; season: str
                   Evet, bu dala geç
                 </button>
               </div>
-            </>
+            </div>
           ) : (
-            <button className="linkish" onClick={() => setConfirm(true)}>Bu mevsim bu dala çalış</button>
+            <button className="linkish" onClick={() => setConfirm(true)}>Günlük dersi bu daldan al</button>
           )}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
 
 function BranchPath({
   branch,
-  open,
   progress,
-  states,
   tried,
 }: {
   branch: BranchDef;
-  open: Set<string>;
   progress: Map<string, { completed: boolean; index: number }>;
-  states: Map<string, import('../db/db').SkillState>;
   tried: Set<string>;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  if (branch.units.length === 0) return <div className="empty">Bu dalın üniteleri henüz planlanmadı.</div>;
-
-  // İlk bitmemiş açık ünite "şu anki durak"
+  // Önerilen durak: ilk bitmemiş (yazılmış) ünite
   const currentUnit = branch.units.find(
-    (u) => open.has(u.id) && (u.lessons.some((l) => !progress.get(l.id)?.completed) || (u.atelier && !tried.has(u.atelier.id))),
+    (u) => !u.draft && (u.lessons.some((l) => !progress.get(l.id)?.completed) || (u.atelier && !tried.has(u.atelier.id))),
   );
 
   return (
     <div className="path">
-      {branch.units.map((u, i) => {
-        const isOpen = open.has(u.id);
-        const prev = i > 0 ? branch.units[i - 1] : undefined;
-        const prevDone = prev ? prev.lessons.filter((l) => progress.get(l.id)?.completed).length : 0;
+      {branch.units.map((u) => {
         const lessonsDone = u.lessons.filter((l) => progress.get(l.id)?.completed).length;
-        const allDone = isOpen && u.lessons.length > 0 && lessonsDone === u.lessons.length && (!u.atelier || tried.has(u.atelier.id));
-        const cls = u.draft ? 'draft' : !isOpen ? 'locked' : u.id === currentUnit?.id ? 'current open' : allDone ? 'done open' : 'open';
-        const ready = unitReadiness(u, states);
+        const allDone = !u.draft && u.lessons.length > 0 && lessonsDone === u.lessons.length && (!u.atelier || tried.has(u.atelier.id));
+        const cls = u.draft ? 'draft' : u.id === currentUnit?.id ? 'current open' : allDone ? 'done open' : 'open';
         const show = expanded === u.id || (expanded === null && u.id === currentUnit?.id);
         return (
           <div key={u.id} className={`stop ${cls}`}>
-            <div className="marker">{u.number}</div>
+            <div className="marker" aria-hidden>{u.number}</div>
             <div className="body">
               <button
                 onClick={() => setExpanded(show ? '' : u.id)}
-                style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}
+                className="stop-head"
                 aria-expanded={show}
               >
-                <div style={{ fontFamily: 'var(--serif)', fontSize: '1.1rem' }}>
-                  {u.title} {!isOpen && !u.draft && <Icon.lock />}
-                </div>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: '1.1rem' }}>{u.title}</div>
                 <div className="small muted">
-                  {u.draft
-                    ? 'Yakında'
-                    : isOpen
-                      ? `${lessonsDone}/${u.lessons.length} ders`
-                      : `Sırası gelince açılır · göz atılabilir${lessonsDone ? ` · ${lessonsDone}/${u.lessons.length} ders` : ''}`}
+                  {u.draft ? 'Geliştiriliyor' : `${lessonsDone}/${u.lessons.length} ders${u.id === currentUnit?.id ? ' · önerilen durak' : ''}`}
                 </div>
               </button>
               {show && (
                 <div className="rise" style={{ marginTop: 10 }}>
                   <p className="small muted">{u.summary}</p>
                   {u.draft ? (
-                    <ul className="small faint" style={{ paddingLeft: 18 }}>
-                      {u.plannedLessons?.map((t) => <li key={t}>{t}</li>)}
-                    </ul>
+                    <>
+                      <p className="tiny faint">Bu ünitenin dersleri henüz yazılmadı. Planlanan dersler:</p>
+                      <ul className="small faint" style={{ paddingLeft: 18 }}>
+                        {u.plannedLessons?.map((t) => <li key={t}>{t}</li>)}
+                      </ul>
+                    </>
                   ) : (
                     <>
-                      {!isOpen && (
-                        <div className="card soft small" style={{ marginBottom: 6 }}>
-                          {prev ? (
-                            <>
-                              Sırası gelince kendiliğinden açılır: “{prev.title}” ünitesinin dersleri bitince ({prevDone}/
-                              {prev.lessons.length} bitti) ve temel becerilerinde ortalama {UNLOCK_AVG}'a ulaşınca (şu an{' '}
-                              {Math.round(unitReadiness(prev, states).avg)}).
-                            </>
-                          ) : (
-                            <>Bu dalın ön koşulları tamamlanınca kendiliğinden açılır.</>
-                          )}{' '}
-                          Beklemek zorunda değilsin: aşağıdaki derslere şimdi de girebilirsin. Yaptıkların kaydedilir ve
-                          becerilerine işlenir; günlük ders ise sırayı izlemeye devam eder.
-                        </div>
-                      )}
                       {u.lessons.map((l) => {
                         const p = progress.get(l.id);
                         const total = lessonFlow(l).length;
                         return (
                           <button key={l.id} className="lesson-row" onClick={() => go(`/session?lesson=${l.id}`)}>
-                            <span className={`state ${p?.completed ? 'done' : p?.index ? 'part' : ''}`}>{p?.completed ? '✓' : ''}</span>
+                            <span className={`state ${p?.completed ? 'done' : p?.index ? 'part' : ''}`} aria-hidden>{p?.completed ? '✓' : ''}</span>
                             <span className="grow">{l.title}</span>
-                            <span className="tiny faint">
-                              {p?.completed ? 'tekrar et' : p?.index ? `${p.index}/${total}` : !isOpen ? 'göz at' : ''}
-                            </span>
+                            <span className="tiny faint">{p?.completed ? 'tamamlandı · tekrar et' : p?.index ? `${p.index}/${total}` : ''}</span>
                           </button>
                         );
                       })}
                       {u.atelier && (
                         <button className="lesson-row" onClick={() => go(`/session?atelier=${u.id}`)}>
-                          <span className={`state ${tried.has(u.atelier.id) ? 'done' : ''}`}>{tried.has(u.atelier.id) ? '✓' : ''}</span>
+                          <span className={`state ${tried.has(u.atelier.id) ? 'done' : ''}`} aria-hidden>{tried.has(u.atelier.id) ? '✓' : ''}</span>
                           <span className="grow">Atölye görevi</span>
                         </button>
                       )}
@@ -209,8 +174,7 @@ function BranchPath({
                   )}
                   {u.keySkills.length > 0 && (
                     <div className="tiny faint" style={{ marginTop: 10 }}>
-                      Temel beceriler: {u.keySkills.map((k) => skillById.get(k)?.name ?? k).join(', ')}
-                      {isOpen && !u.draft && <> · ortalama {Math.round(ready.avg)}/{UNLOCK_AVG}</>}
+                      Çalışılan beceriler: {u.keySkills.map((k) => skillById.get(k)?.name ?? k).join(', ')}
                     </div>
                   )}
                 </div>

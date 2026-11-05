@@ -12,12 +12,14 @@ import { db, defaultSettings, type AiFeedback, type RoadNote } from '../db/db';
 import type { WritingExercise } from '../content/types';
 import { skillById } from '../content';
 import { evaluateWriting, explainError } from '../ai/claude';
-import { buildCopyText, formatResponse } from '../ai/prompt';
+import { formatResponse } from '../ai/prompt';
+import { HelpButton } from './HelpSheet';
+import type { HelpContext } from '../ai/help';
 import { recordWriting } from '../engine/record';
-import { copyText, Prose, useOnline, useToast, Icon } from './ui';
+import { Prose, useOnline, useToast } from './ui';
 import { wordCount, formatDate } from '../lib/tr';
 
-type Phase = 'write' | 'evaluating' | 'feedback' | 'self' | 'saved';
+type Phase = 'write' | 'confirm' | 'evaluating' | 'feedback' | 'self' | 'saved';
 type Resp = string | Record<string, string>;
 
 interface Props {
@@ -35,7 +37,7 @@ interface Props {
 export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, startVersion = 1, initialText, task: taskIn, doneLabel = 'Devam' }: Props) {
   const settings = useLiveQuery(() => db.settings.get('main'), []) ?? defaultSettings();
   const online = useOnline();
-  const [toast, showToast] = useToast();
+  const [toast] = useToast();
   const blank: Resp = ex.type === 'video' ? Object.fromEntries(ex.fields.map((f) => [f.label, ''])) : '';
   const [resp, setResp] = useState<Resp>(initialText ?? blank);
   const [phase, setPhase] = useState<Phase>('write');
@@ -67,6 +69,12 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
     setError(null);
     if (material?.id != null) await db.notes.update(material.id, { usedIn: [...(material.usedIn ?? []), ex.id] });
     if (!canAi) return setPhase('self');
+    // "Göndermeden önce sor" açıksa önce ne gönderileceğini göster
+    if (settings.askBeforeSend) return setPhase('confirm');
+    return sendToClaude();
+  };
+
+  const sendToClaude = async () => {
     setPhase('evaluating');
     try {
       const fb = await evaluateWriting(settings, ex, resp, previous ? formatResponse(previous) : undefined);
@@ -96,9 +104,13 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const copy = async () => {
-    const ok = await copyText(buildCopyText(ex, resp));
-    showToast(ok ? 'Metin ve rubrik panoya kopyalandı.' : 'Kopyalanamadı.');
+  // Yardım Al için bağlam: görev, (varsa) zayıf metin, ölçütler ve senin metnin
+  const helpCtx: HelpContext = {
+    task: ex.prompt,
+    source: ex.type === 'rewrite' ? ex.source : undefined,
+    rubric: ex.rubric,
+    skills: ex.skills,
+    text: formatResponse(resp).trim() || undefined,
   };
 
   const weakestSelf = useMemo(() => {
@@ -127,11 +139,15 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
         )}
         {ex.type === 'rewrite' && <div className="quote">{ex.source}</div>}
 
-        {ex.hint && (
-          <button className="linkish small" onClick={() => setShowHint(!showHint)}>
-            {showHint ? 'İpucunu gizle' : 'İpucu'}
-          </button>
-        )}
+        <div className="row" style={{ gap: 4 }}>
+          {ex.hint && (
+            <button className="linkish small" onClick={() => setShowHint(!showHint)}>
+              {showHint ? 'İpucunu gizle' : 'İpucu'}
+            </button>
+          )}
+          <span className="grow" />
+          <HelpButton context={helpCtx} modes={['fikir', 'acikla', 'degerlendir']} className="linkish small" />
+        </div>
         {showHint && <div className="card soft small rise" style={{ marginBottom: 12 }}>{ex.hint}</div>}
 
         {ex.type === 'write' && notes && notes.length > 0 && !material && (
@@ -222,6 +238,27 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
     );
   }
 
+  // ——— Göndermeden önce onay ———
+  if (phase === 'confirm') {
+    return (
+      <div className="fade">
+        <div className="eyebrow">Göndermeden önce</div>
+        <p className="small muted">
+          Şu metin, görev ve ölçütlerle birlikte Claude'a (Anthropic) gönderilecek. Göndermek istemezsen kendin
+          değerlendirebilirsin; metin yine kaydedilir.
+        </p>
+        <div className="quote">{text}</div>
+        <div className="bottom-spacer" />
+        <div className="bottom-bar">
+          <div className="inner">
+            <button className="btn" onClick={() => setPhase('self')}>Kendim değerlendireyim</button>
+            <button className="btn primary" onClick={sendToClaude}>Claude'a gönder</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ——— Öz-değerlendirme ———
   if (phase === 'self') {
     return (
@@ -245,9 +282,9 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
             </div>
           ))}
         </div>
-        <button className="btn ghost small" style={{ marginTop: 14 }} onClick={copy}>
-          <Icon.copy /> Metni ve rubriği kopyala
-        </button>
+        <div style={{ marginTop: 14 }}>
+          <HelpButton context={helpCtx} modes={['degerlendir', 'fikir']} label="Başka bir yerde değerlendirt" />
+        </div>
         <div className="bottom-spacer" />
         <div className="bottom-bar">
           <div className="inner">
@@ -283,9 +320,9 @@ export default function WritingStep({ ex, sessionId, onDone, rootId: rootIn, sta
           <div className="tiny faint">Tek doğru bu değil; yalnızca bir yol.</div>
         </details>
       )}
-      <button className="btn ghost small" style={{ marginTop: 14 }} onClick={copy}>
-        <Icon.copy /> Metni ve rubriği kopyala
-      </button>
+      <div style={{ marginTop: 14 }}>
+        <HelpButton context={helpCtx} modes={['degerlendir', 'fikir']} label="Başka bir yerde değerlendirt" />
+      </div>
       <div className="bottom-spacer" />
       <div className="bottom-bar">
         <div className="inner">
@@ -314,17 +351,11 @@ export function FeedbackView({ fb }: { fb: AiFeedback }) {
         <div className="prose" style={{ fontSize: '1rem' }}>{fb.suggestion}</div>
       </div>
       <div className="card soft">
-        <div className="eyebrow">Beceriler</div>
+        <div className="eyebrow">Beceri beceri</div>
         {fb.skills.map((s) => (
           <div key={s.skill} style={{ margin: '10px 0' }}>
-            <div className="row between small">
-              <span>{skillById.get(s.skill)?.name ?? s.skill}</span>
-              <span className="faint">{s.score}</span>
-            </div>
-            <div className={`bar ${s.score < 40 ? 'weak' : s.score >= 70 ? 'strong' : ''}`} style={{ margin: '6px 0' }}>
-              <div style={{ width: `${Math.max(2, s.score)}%` }} />
-            </div>
-            <div className="tiny muted">{s.note}</div>
+            <div className="small" style={{ fontWeight: 600 }}>{skillById.get(s.skill)?.name ?? s.skill}</div>
+            <div className="small muted">{s.note}</div>
           </div>
         ))}
       </div>

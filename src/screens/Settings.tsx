@@ -26,7 +26,7 @@ export default function SettingsScreen() {
     await updateSettings({ apiKey: (keyDraft ?? '').trim() });
     setKeyDraft(null);
     show('Anahtar bu cihaza kaydedildi.');
-    void processQueue();
+    void processQueue(true);
   };
 
   const test = async () => {
@@ -154,10 +154,22 @@ export default function SettingsScreen() {
       </div>
 
       <div className="card">
-        <h3>Claude ile değerlendirme</h3>
+        <h3>Yardım</h3>
         <p className="small muted">
-          Yazdıklarını gerçekten okuyup değerlendirmesi için kendi Anthropic API anahtarını gir. Anahtar yalnızca bu cihazda
-          saklanır ve yalnızca Anthropic'in API'sine gönderilir. Yedeğe varsayılan olarak dâhil edilmez.
+          Derslerde, sorularda, yazma alıştırmalarında ve eserlerinde bir "Yardım al" düğmesi var. Uygulama hiçbir şey
+          göndermez: o anki bağlamla bir soru taslağı hazırlar, sen görürsün, istersen düzenlersin, kopyalayıp ya da
+          paylaşıp kendi seçtiğin araca (ChatGPT, Claude, başka bir yapay zekâ ya da bir öğretmen) taşırsın.
+        </p>
+      </div>
+
+      <details className="card" open={!!s.apiKey}>
+        <summary style={{ cursor: 'pointer' }}>
+          <h3 style={{ display: 'inline' }}>İsteğe bağlı: uygulama içinde Claude ile değerlendirme</h3>
+        </summary>
+        <p className="small muted" style={{ marginTop: 10 }}>
+          Kendi Anthropic API anahtarını girersen yazma alıştırmaların uygulamanın içinden Claude'a gönderilip
+          değerlendirilebilir. Anahtar yoksa bu özellik hiç çalışmaz ve hiçbir şey gönderilmez. Anahtar yalnızca bu
+          cihazda saklanır, yalnızca Anthropic'in API'sine gider ve yedeğe varsayılan olarak eklenmez.
         </p>
         <label className="field">
           <span>API anahtarı</span>
@@ -195,6 +207,23 @@ export default function SettingsScreen() {
             <input type="text" spellCheck={false} value={s.model} placeholder="claude-…" onChange={(e) => updateSettings({ model: e.target.value.trim() })} />
           </label>
         )}
+        <label className="row small" style={{ marginTop: 6, alignItems: 'flex-start' }}>
+          <input type="checkbox" checked={s.askBeforeSend} onChange={(e) => updateSettings({ askBeforeSend: e.target.checked })} style={{ width: 20, height: 20, flex: 'none' }} />
+          <span>
+            Göndermeden önce sor. Açıkken her yazı gönderilmeden önce sana gösterilir ve onayın istenir; bekleyen yazılar
+            internet gelince kendiliğinden gönderilmez, Yazılarım'dan elle gönderirsin.
+          </span>
+        </label>
+      </details>
+
+      <div className="card">
+        <h3>Başlangıç noktası</h3>
+        <p className="small muted">
+          Uygulama hangi dersi önereceğine karar verirken ilk günkü seviye tespitinden yola çıktı; sen çalıştıkça bu tahmin
+          kendiliğinden değişiyor ve sana sayı olarak gösterilmiyor. Tespit sana uymadıysa yeniden yapabilirsin; ders
+          ilerlemen ve yazıların olduğu gibi kalır.
+        </p>
+        <button className="btn small" onClick={() => go('/placement')}>Seviye tespitini yeniden yap</button>
       </div>
 
       <div className="card">

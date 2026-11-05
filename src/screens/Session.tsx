@@ -4,7 +4,7 @@
  * böylece oturum yarıda bırakılıp sonra devam edilebilir.
  */
 import { useEffect, useRef, useState } from 'react';
-import { db, type SessionRecord, type SkillState } from '../db/db';
+import { db, type SessionRecord } from '../db/db';
 import { atelierPlan, buildLessonPlan, createCustomSession, getOrCreateTodaySession } from '../engine/planner';
 import { completeStep, finishSession } from '../engine/record';
 import { exerciseById, lessonById, skillById } from '../content';
@@ -25,18 +25,18 @@ export default function Session({ query }: { query: URLSearchParams }) {
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [idx, setIdx] = useState(0);
   const [finished, setFinished] = useState(false);
-  const before = useRef<Map<string, number>>(new Map());
   const started = useRef(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     (async () => {
-      before.current = new Map((await db.skills.toArray()).map((s) => [s.id, s.mastery]));
       let s: SessionRecord;
       const lesson = query.get('lesson');
       const atelier = query.get('atelier');
-      if (lesson) s = await createCustomSession(buildLessonPlan(lesson));
+      const single = query.get('ex'); // Atölyem'den tek alıştırma
+      if (single && exerciseById.has(single)) s = await createCustomSession([{ exerciseId: single, role: 'tekrar' }]);
+      else if (lesson) s = await createCustomSession(buildLessonPlan(lesson));
       else if (atelier) s = await createCustomSession(atelierPlan(atelier));
       else s = await getOrCreateTodaySession(query.get('new') === '1');
       setSession(s);
@@ -64,7 +64,7 @@ export default function Session({ query }: { query: URLSearchParams }) {
     window.scrollTo({ top: 0 });
   };
 
-  if (finished) return <Summary session={session} before={before.current} />;
+  if (finished) return <Summary session={session} />;
 
   const item = session.plan[idx];
   const ex = exerciseById.get(item.exerciseId);
@@ -104,18 +104,15 @@ export default function Session({ query }: { query: URLSearchParams }) {
   );
 }
 
-function Summary({ session, before }: { session: SessionRecord; before: Map<string, number> }) {
-  const [after, setAfter] = useState<SkillState[]>([]);
+/** Oturum sonu: puan değil, ne yaptığın ve hangi becerilere dokunduğun; sonra Günce. */
+function Summary({ session }: { session: SessionRecord }) {
   const [note, setNote] = useState('');
-  useEffect(() => {
-    void db.skills.toArray().then(setAfter);
-  }, []);
-
-  const touched = new Set(session.plan.flatMap((p) => exerciseById.get(p.exerciseId)?.skills ?? []));
-  const changes = after
-    .filter((s) => touched.has(s.id))
-    .map((s) => ({ s, from: before.get(s.id) ?? 0, to: s.mastery }))
-    .filter((c) => Math.abs(c.to - c.from) >= 0.5);
+  const doneItems = session.plan.filter((p) => session.done.includes(p.exerciseId));
+  const touched = [...new Set(doneItems.flatMap((p) => exerciseById.get(p.exerciseId)?.skills ?? []))];
+  const writings = doneItems.filter((p) => {
+    const e = exerciseById.get(p.exerciseId);
+    return e && (e.type === 'write' || e.type === 'rewrite' || e.type === 'video');
+  }).length;
 
   const save = async () => {
     if (note.trim()) await db.journal.add({ date: new Date().toISOString(), text: note.trim(), sessionId: session.id });
@@ -126,15 +123,14 @@ function Summary({ session, before }: { session: SessionRecord; before: Map<stri
     <div className="fade">
       <div className="eyebrow">Oturum bitti</div>
       <h2>Bugünlük bu kadar.</h2>
-      {changes.length > 0 && (
+      <p className="small muted">
+        {doneItems.length} adım{writings ? `, ${writings} yazı` : ''}. Bunların hepsi Yolum → Gelişim'de kanıt olarak duruyor.
+      </p>
+      {touched.length > 0 && (
         <div className="card soft small">
-          {changes.map(({ s, from, to }) => (
-            <div key={s.id} className="row between" style={{ padding: '6px 0' }}>
-              <span>{skillById.get(s.id)?.name}</span>
-              <span className={to >= from ? '' : 'faint'}>
-                {Math.round(from)} → {Math.round(to)}
-              </span>
-            </div>
+          <div className="eyebrow">Bugün dokunduğun beceriler</div>
+          {touched.map((id) => (
+            <div key={id} style={{ padding: '4px 0' }}>{skillById.get(id)?.name}</div>
           ))}
         </div>
       )}

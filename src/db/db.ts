@@ -25,6 +25,11 @@ export interface SkillState {
   /** Küçük adımlar kipinden çıkmak için gereken art arda başarı sayacı */
   recover: number;
   scaffold: boolean;
+  /**
+   * Senin kendi işaretin: 'ogrendim' = bu beceriyi oturmuş sayıyorum (motor biraz geri çeker),
+   * 'tekrar' = tekrar denemek istiyorum (motor öne alır).
+   */
+  selfMark?: 'ogrendim' | 'tekrar';
 }
 
 /** Objektif sorular (çoktan seçmeli vb.) için soru düzeyinde tekrar kartı */
@@ -119,6 +124,8 @@ export interface Draft {
   materials?: number[];
   /** Yazılarım'dan masaya alındıysa kaynak denemenin kimliği */
   fromAttempt?: number;
+  /** Bu taslakta uyguladığın beceriler (Gelişim ekranında kanıt olarak görünür) */
+  skills?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -132,12 +139,76 @@ export interface DraftRevision {
   note?: string;
 }
 
+export type ProjectKind = 'serbest' | 'deneme-kitabi' | 'gezi-kitabi' | 'oyku-dosyasi' | 'roman' | 'siir-dosyasi' | 'video-serisi';
+
+/** Proje defteri kartı: türe göre karakter, mekân, durak, sahne… */
+export interface ProjectCard {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+}
+
 export interface Project {
   id: string;
   title: string;
   description?: string;
+  /** Proje türü: araçlar ve bölüm adı buna göre değişir (yoksa 'serbest') */
+  kind?: ProjectKind;
   /** Bölüm sırası: taslak kimlikleri */
   order: string[];
+  /** Türe göre defter kartları (roman: karakter; gezi: durak…) */
+  cards?: ProjectCard[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ——— Kütüphanem (sürüm 3) ———
+export interface SourceQuote {
+  id: string;
+  text: string;
+  /** Sayfa, dakika ya da bölüm bilgisi */
+  where?: string;
+  note?: string;
+}
+
+export interface LibrarySource {
+  id?: number;
+  title: string;
+  author?: string;
+  kind: 'kitap' | 'makale' | 'site' | 'video' | 'podcast' | 'eser' | 'diğer';
+  language: 'tr' | 'en' | 'diğer';
+  level?: 'başlangıç' | 'orta' | 'ileri';
+  /** Nasıl erişilir: "kitapçı / kütüphane", "çevrimiçi, ücretsiz"… */
+  access?: string;
+  url?: string;
+  /** Bu kaynak ne öğretiyor (kısa) */
+  teaches?: string;
+  skills: string[];
+  tags: string[];
+  status: 'okunacak' | 'okunuyor' | 'inceledim';
+  /** Senin özetin, kendi cümlelerinle */
+  summary?: string;
+  quotes: SourceQuote[];
+  /** Uygulamanın önerdiği bir kaynaktan eklendiyse onun kimliği */
+  suggestionId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Kendi kavram kartın: bir kavramı kendi cümlelerinle tanımla, derslere ve eserlere bağla */
+export interface ConceptCard {
+  id?: number;
+  term: string;
+  definition: string;
+  example?: string;
+  skills: string[];
+  /** Bağlı dersler (ders kimlikleri) */
+  lessons: string[];
+  /** Bağlı eserler (taslak kimlikleri) */
+  drafts: string[];
+  /** Bağlı kaynaklar */
+  sources: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -186,7 +257,7 @@ export const DEFAULT_MODEL = 'claude-sonnet-5-5';
 
 export const defaultSettings = (): Settings => ({
   key: 'main',
-  name: 'Muhammed',
+  name: '',
   apiKey: '',
   model: DEFAULT_MODEL,
   theme: 'dark',
@@ -225,6 +296,8 @@ class AppDB extends Dexie {
   draftRevisions!: Table<DraftRevision, string>;
   projects!: Table<Project, string>;
   freewrites!: Table<Freewrite, number>;
+  sources!: Table<LibrarySource, number>;
+  concepts!: Table<ConceptCard, number>;
 
   constructor() {
     super('ruzgarla-dans');
@@ -269,6 +342,12 @@ class AppDB extends Dexie {
             if (to) sk.moduleId = to;
           });
       });
+
+    // Sürüm 3 — Kütüphanem: kaynaklar ve kavram kartları. Var olan kayıtlar değişmez.
+    this.version(3).stores({
+      sources: '++id, status, kind, updatedAt, suggestionId, *skills, *tags',
+      concepts: '++id, term, updatedAt, *skills',
+    });
   }
 }
 

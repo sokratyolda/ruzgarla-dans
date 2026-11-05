@@ -1,14 +1,16 @@
 /**
- * Yazarın Masası: alıştırmalardan bağımsız serbest yazı alanı.
+ * Eserlerim (eski adıyla Masa): alıştırmalardan bağımsız kendi yazın.
  * Sekmeler: Taslaklar · Projeler · Yol Defteri
  */
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Draft } from '../db/db';
-import { DRAFT_KINDS, createDraft, createProject, draftTitle, draftWords, kindLabel, statusLabel } from '../lib/desk';
+import { DRAFT_KINDS, PROJECT_TEMPLATES, createDraft, createProject, draftTitle, draftWords, kindLabel, statusLabel, templateOf } from '../lib/desk';
+import type { ProjectKind } from '../db/db';
 import { formatDate, normalize } from '../lib/tr';
 import { go } from '../lib/router';
 import RoadNotes from './RoadNotes';
+import { Tabs } from '../components/ui';
 
 type Tab = 'taslaklar' | 'projeler' | 'notlar';
 
@@ -18,21 +20,17 @@ export default function Desk({ query }: { query: URLSearchParams }) {
 
   return (
     <div className="fade">
-      <div className="eyebrow">Masa</div>
+      <div className="eyebrow">Eserlerim</div>
       <h1>Yazarın masası</h1>
-      <div className="seg" role="tablist" style={{ marginBottom: 18 }}>
-        {(
-          [
-            ['taslaklar', 'Taslaklar'],
-            ['projeler', 'Projeler'],
-            ['notlar', 'Yol Defteri'],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={[
+          ['taslaklar', 'Taslaklar'],
+          ['projeler', 'Projeler'],
+          ['notlar', 'Yol Defteri'],
+        ]}
+      />
       {tab === 'taslaklar' && <DraftList />}
       {tab === 'projeler' && <ProjectList />}
       {tab === 'notlar' && <RoadNotes embedded />}
@@ -105,10 +103,11 @@ function ProjectList() {
   const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), []) ?? [];
   const drafts = useLiveQuery(() => db.drafts.toArray(), []) ?? [];
   const [title, setTitle] = useState('');
+  const [kind, setKind] = useState<ProjectKind>('deneme-kitabi');
 
   const create = async () => {
     if (!title.trim()) return;
-    const id = await createProject(title);
+    const id = await createProject(title, kind);
     setTitle('');
     go(`/project/${id}`);
   };
@@ -119,10 +118,20 @@ function ProjectList() {
         Bir proje, taslakları bir araya getirir: bir deneme dizisi, bir yol kitabı, bir video serisi. Bölüm sırasını
         sen belirlersin; bütün proje tek bir Markdown dosyası olarak dışa aktarılabilir.
       </p>
-      <div className="row">
-        <input type="text" placeholder="Proje adı (ör. Yol Denemeleri)" value={title} onChange={(e) => setTitle(e.target.value)} className="grow" />
-        <button className="btn primary" disabled={!title.trim()} onClick={create}>Oluştur</button>
-      </div>
+      <label className="field">
+        <span>Proje adı</span>
+        <input type="text" lang="tr" placeholder="ör. Yol Denemeleri" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Türü</span>
+        <select value={kind} onChange={(e) => setKind(e.target.value as ProjectKind)}>
+          {PROJECT_TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+      </label>
+      <p className="tiny faint" style={{ marginTop: -6 }}>{templateOf(kind).help}</p>
+      <button className="btn primary block" disabled={!title.trim()} onClick={create}>Oluştur</button>
       {projects.length === 0 ? (
         <div className="empty">Henüz proje yok.</div>
       ) : (
@@ -136,7 +145,7 @@ function ProjectList() {
                 <div>
                   <div style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem' }}>{p.title}</div>
                   <div className="tiny faint">
-                    {ds.length} bölüm · {finished} bitti · {words} kelime
+                    {templateOf(p.kind).label} · {ds.length} {templateOf(p.kind).unit} · {finished} bitti · {words} kelime
                   </div>
                 </div>
                 <span className="chev">›</span>

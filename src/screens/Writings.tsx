@@ -12,7 +12,8 @@ import { FeedbackView } from '../components/WritingStep';
 import { go } from '../lib/router';
 import { createDraft } from '../lib/desk';
 
-export default function Writings() {
+/** `embedded`: Atölyem içinde sekme olarak gösterilir. */
+export default function Writings({ embedded = false }: { embedded?: boolean }) {
   const attempts = useLiveQuery(() => db.attempts.orderBy('date').reverse().toArray(), []) ?? [];
   const settings = useLiveQuery(() => db.settings.get('main'), []);
   const online = useOnline();
@@ -38,8 +39,8 @@ export default function Writings() {
   };
 
   return (
-    <div className="fade">
-      <TopBar title="Yazılarım" />
+    <div className={embedded ? '' : 'fade'}>
+      {!embedded && <TopBar title="Yazılarım" />}
       {pending > 0 && (
         <div className="card soft small" style={{ marginBottom: 16 }}>
           {pending} yazı yapay zekâ değerlendirmesini bekliyor.{' '}
@@ -121,9 +122,9 @@ function Version({ a, label }: { a: Attempt; label?: string }) {
         {a.pendingReview === 1 ? (
           <span className="tag ember">bekliyor</span>
         ) : a.aiFeedback ? (
-          <span className="tag good">{Math.round(a.score * 100)}</span>
+          <span className="tag good">okundu</span>
         ) : a.selfScores ? (
-          <span className="tag">öz · {Math.round(a.score * 100)}</span>
+          <span className="tag">öz değerlendirme</span>
         ) : null}
       </div>
       <div style={{ fontFamily: 'var(--serif)', whiteSpace: 'pre-wrap', fontSize: '1rem', lineHeight: 1.65 }}>

@@ -9,7 +9,7 @@
  *        AUTO_GAP_MIN dakika geçtiyse.
  *  • Eski bir sürüme dönmeden önce güncel metin her zaman sürüm olarak saklanır; dönüş geri alınabilir.
  */
-import { db, type Draft, type DraftRevision, type Project } from '../db/db';
+import { db, type Draft, type DraftRevision, type Project, type ProjectCard, type ProjectKind } from '../db/db';
 import { lower, today, wordCount } from './tr';
 
 export const AUTO_GAP_MIN = 10;
@@ -132,8 +132,8 @@ export async function restoreRevision(draftId: string, revisionId: string) {
 
 // ——— Projeler ———
 
-export async function createProject(title: string, description?: string): Promise<string> {
-  const p: Project = { id: uuid(), title: title.trim() || 'Adsız proje', description, order: [], createdAt: now(), updatedAt: now() };
+export async function createProject(title: string, kind: ProjectKind = 'serbest', description?: string): Promise<string> {
+  const p: Project = { id: uuid(), title: title.trim() || 'Adsız proje', kind, description, order: [], cards: [], createdAt: now(), updatedAt: now() };
   await db.projects.add(p);
   return p.id;
 }
@@ -214,10 +214,20 @@ export function draftToMarkdown(d: Draft, level = 1): string {
   return `${h} ${draftTitle(d)}\n\n${d.body.trim()}\n`;
 }
 
-export async function projectToMarkdown(p: Project): Promise<string> {
+export async function projectToMarkdown(p: Project, withNotebook = false): Promise<string> {
   const drafts = await projectDrafts(p);
   const head = `# ${p.title}\n\n${p.description?.trim() ? p.description.trim() + '\n\n' : ''}`;
-  return head + drafts.map((d) => draftToMarkdown(d, 2)).join('\n');
+  let md = head + drafts.map((d) => draftToMarkdown(d, 2)).join('\n');
+  if (withNotebook && p.cards?.length) {
+    const t = templateOf(p.kind);
+    md += '\n---\n\n# Proje defteri\n';
+    for (const ct of t.cards) {
+      const cs = p.cards.filter((c) => c.type === ct.type);
+      if (!cs.length) continue;
+      md += `\n## ${ct.label}\n\n` + cs.map((c) => `**${c.title}**${c.body.trim() ? `\n${c.body.trim()}` : ''}`).join('\n\n') + '\n';
+    }
+  }
+  return md;
 }
 
 export function downloadText(filename: string, text: string, type = 'text/markdown;charset=utf-8') {
@@ -234,8 +244,109 @@ export function downloadText(filename: string, text: string, type = 'text/markdo
 
 export const exportDraft = (d: Draft) => downloadText(`${slugify(draftTitle(d))}.md`, draftToMarkdown(d));
 
-export async function exportProject(p: Project) {
-  downloadText(`${slugify(p.title)}-${today()}.md`, await projectToMarkdown(p));
+export async function exportProject(p: Project, withNotebook = false) {
+  downloadText(`${slugify(p.title)}-${today()}.md`, await projectToMarkdown(p, withNotebook));
 }
 
 export const draftWords = (d: Pick<Draft, 'body'>) => wordCount(d.body);
+
+// ——— Proje şablonları: eser türüne göre araçlar ———
+
+export interface ProjectTemplate {
+  id: ProjectKind;
+  label: string;
+  /** Bölümlerin adı (öykü dosyasında "öykü", şiir dosyasında "şiir"…) */
+  unit: string;
+  /** Yeni bölümün varsayılan taslak türü */
+  draftKind: Draft['kind'];
+  /** Proje defterindeki kart türleri; boşsa defter gösterilmez (şiirde zorunlu alan yok) */
+  cards: { type: string; label: string; hint: string }[];
+  help: string;
+}
+
+export const PROJECT_TEMPLATES: ProjectTemplate[] = [
+  {
+    id: 'deneme-kitabi',
+    label: 'Deneme kitabı',
+    unit: 'deneme',
+    draftKind: 'deneme',
+    cards: [{ type: 'soru', label: 'Merak soruları', hint: 'Bu kitabın denemeleri hangi soruların peşinde?' }],
+    help: 'Her bölüm bir deneme. Merak soruları, dizinin ortak damarını görünür tutar.',
+  },
+  {
+    id: 'gezi-kitabi',
+    label: 'Gezi kitabı',
+    unit: 'bölüm',
+    draftKind: 'gezi',
+    cards: [
+      { type: 'durak', label: 'Duraklar', hint: 'Yer, tarih, orada ne oldu?' },
+      { type: 'insan', label: 'Karşılaşılan insanlar', hint: 'Kim, nerede; izin ve mahremiyet notu.' },
+    ],
+    help: 'Rota değil hikâye: duraklar ve insanlar defterde, bölümler yazıda.',
+  },
+  {
+    id: 'oyku-dosyasi',
+    label: 'Öykü dosyası',
+    unit: 'öykü',
+    draftKind: 'öykü',
+    cards: [{ type: 'tema', label: 'Ortak damar', hint: 'Öyküleri birbirine bağlayan tema, yer ya da duygu.' }],
+    help: 'Her bölüm ayrı bir öykü; dosya sırası okurun yolculuğudur.',
+  },
+  {
+    id: 'roman',
+    label: 'Roman',
+    unit: 'bölüm',
+    draftKind: 'öykü',
+    cards: [
+      { type: 'karakter', label: 'Karakterler', hint: 'Arzu, korku, çelişki.' },
+      { type: 'mekan', label: 'Mekânlar', hint: 'Mekân hangi ruh hâlini taşıyor?' },
+      { type: 'olay', label: 'Olay örgüsü notları', hint: 'Karar anları, kırılmalar.' },
+    ],
+    help: 'Bölümler sırayla; karakter, mekân ve olay kartları defterde.',
+  },
+  {
+    id: 'siir-dosyasi',
+    label: 'Şiir dosyası',
+    unit: 'şiir',
+    draftKind: 'şiir',
+    cards: [],
+    help: 'Yalnızca şiirler ve sıraları. Zorunlu alan yok.',
+  },
+  {
+    id: 'video-serisi',
+    label: 'Video serisi',
+    unit: 'bölüm',
+    draftKind: 'video-metni',
+    cards: [{ type: 'cekim', label: 'Çekim notları', hint: 'Plan, ses, ekipman (DJI Action 4, Nikon Z30).' }],
+    help: 'Her bölüm bir videonun metni ya da planı.',
+  },
+  {
+    id: 'serbest',
+    label: 'Serbest',
+    unit: 'bölüm',
+    draftKind: 'deneme',
+    cards: [{ type: 'not', label: 'Notlar', hint: 'Bu projeyle ilgili her şey.' }],
+    help: 'Kalıpsız bir proje.',
+  },
+];
+
+export const templateOf = (kind?: ProjectKind) => PROJECT_TEMPLATES.find((t) => t.id === (kind ?? 'serbest')) ?? PROJECT_TEMPLATES[PROJECT_TEMPLATES.length - 1];
+
+export async function addProjectCard(projectId: string, type: string, title: string, body = '') {
+  const p = await db.projects.get(projectId);
+  if (!p) return;
+  const card: ProjectCard = { id: uuid(), type, title: title.trim(), body };
+  await updateProject(projectId, { cards: [...(p.cards ?? []), card] });
+}
+
+export async function updateProjectCard(projectId: string, cardId: string, patch: Partial<ProjectCard>) {
+  const p = await db.projects.get(projectId);
+  if (!p) return;
+  await updateProject(projectId, { cards: (p.cards ?? []).map((c) => (c.id === cardId ? { ...c, ...patch } : c)) });
+}
+
+export async function removeProjectCard(projectId: string, cardId: string) {
+  const p = await db.projects.get(projectId);
+  if (!p) return;
+  await updateProject(projectId, { cards: (p.cards ?? []).filter((c) => c.id !== cardId) });
+}

@@ -19,13 +19,16 @@ const TABLES = [
   'draftRevisions',
   'projects',
   'freewrites',
+  // sürüm 3
+  'sources',
+  'concepts',
 ] as const;
 type TableName = (typeof TABLES)[number];
 
 export interface BackupFile {
   app: 'ruzgarla-dans';
-  /** 1: ilk sürüm; 2: Yazarlık çatısı (Masa tabloları eklendi). Eski yedekler de geri yüklenebilir. */
-  version: 1 | 2;
+  /** 1: ilk sürüm; 2: Yazarlık çatısı (Masa); 3: Kütüphanem. Eski yedekler de geri yüklenebilir. */
+  version: 1 | 2 | 3;
   exportedAt: string;
   data: Record<TableName, unknown[]>;
 }
@@ -34,7 +37,7 @@ export async function exportData(includeApiKey = false): Promise<BackupFile> {
   const data = {} as Record<TableName, unknown[]>;
   for (const t of TABLES) data[t] = await db.table(t).toArray();
   if (!includeApiKey) data.settings = (data.settings as { apiKey?: string }[]).map((s) => ({ ...s, apiKey: '' }));
-  return { app: 'ruzgarla-dans', version: 2, exportedAt: new Date().toISOString(), data };
+  return { app: 'ruzgarla-dans', version: 3, exportedAt: new Date().toISOString(), data };
 }
 
 export async function downloadBackup(includeApiKey = false) {
@@ -66,6 +69,8 @@ export const TABLE_LABELS: Record<TableName, string> = {
   draftRevisions: 'taslak sürümü',
   projects: 'proje',
   freewrites: 'serbest yazı',
+  sources: 'kaynak',
+  concepts: 'kavram kartı',
 };
 
 type Row = Record<string, unknown>;
@@ -83,7 +88,7 @@ export function parseBackup(text: string): BackupFile {
   }
   if (parsed?.app !== 'ruzgarla-dans' || typeof parsed.data !== 'object' || parsed.data === null)
     throw new Error('Bu dosya bir Rüzgârla Dans yedeği değil.');
-  if (parsed.version !== 1 && parsed.version !== 2)
+  if (parsed.version !== 1 && parsed.version !== 2 && parsed.version !== 3)
     throw new Error(`Bu yedek uygulamanın daha yeni bir sürümüyle alınmış (sürüm ${String(parsed.version)}). Önce uygulamayı güncelle.`);
   for (const t of TABLES) {
     const rows = parsed.data[t];
@@ -93,7 +98,7 @@ export function parseBackup(text: string): BackupFile {
 }
 
 export interface BackupPreview {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt?: string;
   counts: Partial<Record<TableName, number>>;
   hasApiKey: boolean;
@@ -273,6 +278,33 @@ export async function mergeWith(b: BackupFile): Promise<{ added: Record<string, 
       if (await db.draftRevisions.get(r.id as string)) continue;
       await db.draftRevisions.put(r as never);
       inc('draftRevisions');
+    }
+
+    // Kütüphane: aynı ad ve oluşturulma anı varsa var sayılır; yoksa yeni kimlikle eklenir
+    const sourceMap = new Map<number, number>();
+    const existingSources = await db.sources.toArray();
+    for (const r of data.sources) {
+      const oldId = r.id as number;
+      const match = existingSources.find((x) => x.title === r.title && x.createdAt === r.createdAt);
+      if (match) {
+        sourceMap.set(oldId, match.id!);
+        if (String(r.updatedAt) > match.updatedAt) {
+          await db.sources.put({ ...(r as object), id: match.id } as never);
+          inc('sources');
+        }
+      } else {
+        const { id: _drop, ...rest } = r;
+        sourceMap.set(oldId, await db.sources.add(rest as never));
+        inc('sources');
+      }
+    }
+    const existingConcepts = await db.concepts.toArray();
+    for (const r of data.concepts) {
+      if (existingConcepts.some((c) => c.term === r.term && c.createdAt === r.createdAt)) continue;
+      const { id: _drop, ...rest } = r;
+      rest.sources = ((rest.sources as number[] | undefined) ?? []).map((x) => sourceMap.get(x)).filter((x) => x != null);
+      await db.concepts.add(rest as never);
+      inc('concepts');
     }
   });
   return { added };

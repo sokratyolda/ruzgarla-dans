@@ -13,6 +13,18 @@ export const Icon = {
   gaps: () => (
     <svg viewBox="0 0 24 24" {...P}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
   ),
+  workshop: () => (
+    <svg viewBox="0 0 24 24" {...P}><path d="M4 19h16" /><path d="M7 19V9l5-5 5 5v10" /><path d="M10 19v-5h4v5" /></svg>
+  ),
+  library: () => (
+    <svg viewBox="0 0 24 24" {...P}><path d="M5 4h3v16H5z" /><path d="M10 4h3v16h-3z" /><path d="M15.5 4.6l2.9-.8 3.1 15.4-2.9.8z" /></svg>
+  ),
+  gear: () => (
+    <svg viewBox="0 0 24 24" {...P}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>
+  ),
+  help: () => (
+    <svg viewBox="0 0 24 24" width="18" height="18" {...P}><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14" /><circle cx="12" cy="17" r=".6" /></svg>
+  ),
   desk: () => (
     <svg viewBox="0 0 24 24" {...P}><path d="M4 20h16" /><path d="M14.5 4.5l5 5L10 19H5v-5z" /><path d="M12.5 6.5l5 5" /></svg>
   ),
@@ -121,6 +133,19 @@ export function Prose({ text, className = '' }: { text: string | string[]; class
     <div className={`prose ${className}`}>
       {paras.map((p, i) => (
         <p key={i} style={{ whiteSpace: 'pre-wrap' }}>{p}</p>
+      ))}
+    </div>
+  );
+}
+
+/** Bölüm içi sekmeler (Yolum, Atölyem, Kütüphanem, Eserlerim) */
+export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: [T, string][] }) {
+  return (
+    <div className="seg" role="tablist" style={{ marginBottom: 18 }}>
+      {items.map(([id, label]) => (
+        <button key={id} role="tab" aria-selected={value === id} className={value === id ? 'on' : ''} onClick={() => onChange(id)}>
+          {label}
+        </button>
       ))}
     </div>
   );

@@ -1,6 +1,13 @@
 # Rüzgârla Dans → Yazarlık: Birleştirilmiş Müfredat ve Geliştirme Planı
 
-*Hazırlanış: 5 Kasım 2026 · Durum: plan (henüz kodlanmadı)*
+*Hazırlanış: 5 Kasım 2026 · Güncelleme: Aşama A ve B yapıldı; ardından gelen değerlendirmeyle yön değişiklikleri aşağıda.*
+
+> **Yön değişikliği (5 Kasım 2026, kullanıcı kararı):**
+> - Kilit yok: yazılmış bütün dersler ilk günden açık, uygulama yalnızca sıra önerir; içeriği olmayan dallar "Geliştiriliyor" listesinde.
+> - Beceri tahmini ekranda sayı olarak gösterilmez; Gelişim ekranı kanıtla (alıştırma, yazı, yeniden yazım, eser) ve kendi işaretinle ("öğrendim / tekrar") çalışır.
+> - Yapay zekâ: "Yardım Al" (kopyala–yapıştır, uygulama hiçbir şey göndermez) ana yol; uygulama içi Claude değerlendirmesi isteğe bağlı ve "göndermeden önce sor" seçeneğiyle.
+> - Gezinme: Bugün · Yolum · Atölyem · Kütüphanem · Eserlerim. Kütüphanem eklendi; proje şablonları ve proje defteri eklendi.
+> - Aşağıdaki planın içerik ve mevsim bölümleri geçerli; "kilit" ve "ustalık puanı" geçen yerler yukarıdaki kararlarla okunmalı.
 
 Bu belge üç kaynağı birleştirir:
 
